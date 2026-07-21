@@ -1,0 +1,435 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Enums ----------
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum ProviderType {
+  INDIVIDUAL
+  BUSINESS
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum BookingStatus {
+  REQUESTED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DECLINED
+  DISPUTED
+}
+
+enum PaymentStatus {
+  PENDING
+  ESCROW
+  RELEASED
+  REFUNDED
+  FAILED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTIONED
+  DISMISSED
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  EMAIL
+  SMS
+}
+
+enum PromotionType {
+  DISCOUNT
+  CAMPAIGN
+  COUPON
+}
+
+enum NoShowParty {
+  CUSTOMER
+  PROVIDER
+}
+
+// ---------- Core identity ----------
+
+model User {
+  id                String     @id @default(uuid())
+  email             String     @unique
+  passwordHash      String?
+  googleId          String?    @unique
+  role              UserRole
+  status            UserStatus @default(ACTIVE)
+  emailVerified     Boolean    @default(false)
+  refreshTokenHash  String?
+  passwordResetTokenHash  String?
+  passwordResetExpiresAt  DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  customerProfile   CustomerProfile?
+  providerProfile   ProviderProfile?
+
+  sentMessages      Message[]        @relation("MessageSender")
+  notifications     Notification[]
+  reportsFiled      Report[]         @relation("ReportReporter")
+  consentRecords    ConsentRecord[]
+  auditLogs         AuditLog[]       @relation("AuditActor")
+}
+
+model ConsentRecord {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  consentType String
+  granted     Boolean
+  createdAt   DateTime @default(now())
+}
+
+// ---------- Customer ----------
+
+model CustomerProfile {
+  id                  String    @id @default(uuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id])
+  firstName           String
+  lastName             String
+  phone               String?
+  avatarUrl           String?
+  privacyPreferences  Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  addresses           Address[]
+  favoriteProviders   FavoriteProvider[]
+  bookings            Booking[]
+  reviews             Review[]
+}
+
+model Address {
+  id                String          @id @default(uuid())
+  customerProfileId String
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id])
+  label             String?
+  line1             String
+  line2             String?
+  city              String
+  state             String?
+  country           String
+  postalCode        String?
+  latitude          Float?
+  longitude         Float?
+  isDefault         Boolean         @default(false)
+}
+
+model FavoriteProvider {
+  id                String          @id @default(uuid())
+  customerProfileId String
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id])
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  createdAt         DateTime        @default(now())
+
+  @@unique([customerProfileId, providerProfileId])
+}
+
+// ---------- Provider ----------
+
+model ProviderProfile {
+  id                  String              @id @default(uuid())
+  userId              String              @unique
+  user                User                @relation(fields: [userId], references: [id])
+  providerType        ProviderType
+  displayName         String
+  profileImage        String?
+  coverImage           String?
+  description          String?
+  yearsExperience      Int?
+  contactInfo          String?
+  serviceArea          String?
+  website              String?
+  socialLinks         Json?
+  portfolioLinks      Json?
+  languages           String[]
+  operatingHours      Json?
+  verificationStatus  VerificationStatus  @default(PENDING)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  certifications      Certification[]
+  kycVerifications    KycVerification[]
+  listings            ServiceListing[]
+  availabilitySlots   AvailabilitySlot[]
+  bookings            Booking[]
+  reviews             Review[]
+  promotions          Promotion[]
+  favoritedBy         FavoriteProvider[]
+}
+
+model Certification {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  name              String
+  issuer            String?
+  fileUrl           String
+  verificationLink  String?
+  expiryDate        DateTime?
+  createdAt         DateTime        @default(now())
+}
+
+model KycVerification {
+  id                String              @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile     @relation(fields: [providerProfileId], references: [id])
+  documentType      String
+  documentUrl       String
+  status            VerificationStatus  @default(PENDING)
+  reviewedById      String?
+  rejectionReason   String?
+  createdAt         DateTime            @default(now())
+  reviewedAt        DateTime?
+}
+
+// ---------- Categories & Listings ----------
+
+model Category {
+  id       String     @id @default(uuid())
+  name     String     @unique
+  parentId String?
+  parent   Category?  @relation("CategoryToSub", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryToSub")
+
+  listings ServiceListing[]
+}
+
+model ServiceListing {
+  id                 String          @id @default(uuid())
+  providerProfileId  String
+  providerProfile    ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  categoryId         String
+  category           Category        @relation(fields: [categoryId], references: [id])
+  title              String
+  description        String
+  price              Decimal
+  durationMinutes    Int
+  images             String[]
+  serviceArea        String?
+  tags               String[]
+  cancellationCutoffHours Int        @default(24)
+  isActive           Boolean         @default(true)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  bookings           Booking[]
+}
+
+model AvailabilitySlot {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  dayOfWeek         Int?
+  date              DateTime?
+  startTime         String
+  endTime           String
+  isBlocked         Boolean         @default(false)
+}
+
+// ---------- Booking, Payment, Dispute ----------
+
+model Booking {
+  id                String          @id @default(uuid())
+  customerId        String
+  customer          CustomerProfile @relation(fields: [customerId], references: [id])
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  listingId         String
+  listing           ServiceListing  @relation(fields: [listingId], references: [id])
+  status            BookingStatus   @default(REQUESTED)
+  scheduledAt       DateTime
+  price             Decimal
+  cancelledAt       DateTime?
+  cancellationReason String?
+  noShowBy          NoShowParty?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  statusHistory     BookingStatusHistory[]
+  payment           Payment?
+  dispute           Dispute?
+  conversation       Conversation?
+  review            Review?
+  documentation     ServiceDocumentation[]
+}
+
+model BookingStatusHistory {
+  id         String        @id @default(uuid())
+  bookingId  String
+  booking    Booking       @relation(fields: [bookingId], references: [id])
+  fromStatus BookingStatus?
+  toStatus   BookingStatus
+  changedById String?
+  createdAt  DateTime      @default(now())
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  bookingId      String        @unique
+  booking        Booking       @relation(fields: [bookingId], references: [id])
+  amount         Decimal
+  gateway        String
+  status         PaymentStatus @default(PENDING)
+  transactionRef String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Dispute {
+  id          String        @id @default(uuid())
+  bookingId   String        @unique
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  raisedById  String
+  reason      String
+  status      DisputeStatus @default(OPEN)
+  resolution  String?
+  resolvedById String?
+  createdAt   DateTime      @default(now())
+  resolvedAt  DateTime?
+}
+
+model ServiceDocumentation {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  kind      String   // BEFORE | COMPLETION | AFTER
+  imageUrl  String
+  createdAt DateTime @default(now())
+}
+
+// ---------- Messaging ----------
+
+model Conversation {
+  id        String    @id @default(uuid())
+  bookingId String    @unique
+  booking   Booking   @relation(fields: [bookingId], references: [id])
+  createdAt DateTime  @default(now())
+
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  content        String?
+  imageUrl       String?
+  createdAt      DateTime     @default(now())
+}
+
+// ---------- Notifications ----------
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String
+  user      User                @relation(fields: [userId], references: [id])
+  type      String
+  channel   NotificationChannel
+  content   String
+  isRead    Boolean             @default(false)
+  createdAt DateTime            @default(now())
+}
+
+// ---------- Reviews ----------
+
+model Review {
+  id                String          @id @default(uuid())
+  bookingId         String          @unique
+  booking           Booking         @relation(fields: [bookingId], references: [id])
+  customerId        String
+  customer          CustomerProfile @relation(fields: [customerId], references: [id])
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  rating            Int
+  comment           String?
+  images            String[]
+  providerReply     String?
+  createdAt         DateTime        @default(now())
+}
+
+// ---------- Moderation ----------
+
+model Report {
+  id          String       @id @default(uuid())
+  reporterId  String
+  reporter    User         @relation("ReportReporter", fields: [reporterId], references: [id])
+  targetType  String
+  targetId    String
+  reason      String
+  description String?
+  images      String[]
+  status      ReportStatus @default(PENDING)
+  reviewedById String?
+  createdAt   DateTime     @default(now())
+}
+
+// ---------- Promotions ----------
+
+model Promotion {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  type              PromotionType
+  code              String?
+  details           Json?
+  validFrom         DateTime
+  validTo           DateTime
+  isActive          Boolean         @default(true)
+}
+
+// ---------- Admin / audit ----------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+}
