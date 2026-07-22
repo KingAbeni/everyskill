@@ -1,0 +1,463 @@
+{
+  "info": {
+    "name": "EverySkill Backend",
+    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password), the customer module (FR2: profile, addresses, favorites, booking/payment history, consents, GDPR export/deletion), and the provider module (FR3: profile, skills, gallery, certifications). Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, and 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "email", "value": "provider@example.com" },
+    { "key": "password", "value": "SuperSecret123" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "providerAccessToken", "value": "" },
+    { "key": "providerRefreshToken", "value": "" },
+    { "key": "resetToken", "value": "" },
+    { "key": "addressId", "value": "" },
+    { "key": "providerProfileId", "value": "" },
+    { "key": "certificationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (Customer)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"CUSTOMER\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"Intern\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register (Provider - Individual)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"provider.individual@example.com\",\n  \"password\": \"{{password}}\",\n  \"role\": \"PROVIDER\",\n  \"providerType\": \"INDIVIDUAL\",\n  \"displayName\": \"Jane's Plumbing\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('providerAccessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('providerRefreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register (Provider - Business)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"PROVIDER\",\n  \"providerType\": \"BUSINESS\",\n  \"displayName\": \"Acme Home Services\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('providerAccessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('providerRefreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "forgot-password"] }
+          },
+          "description": "No email provider is wired up yet, so the reset token is printed to the backend's console log instead of being emailed. Copy it from there into the 'resetToken' collection variable before running Reset Password."
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"NewSuperSecret456\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "reset-password"] }
+          },
+          "description": "Paste the token logged to the console by 'Forgot Password' into the 'resetToken' collection variable first (Collection > Variables tab)."
+        }
+      ]
+    },
+    {
+      "name": "Customer",
+      "description": "Requires a CUSTOMER access token — run Auth > Register (Customer) or Login first.",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me"] }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+1234567890\",\n  \"privacyPreferences\": { \"shareLocation\": false }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers/me", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me"] }
+          }
+        },
+        {
+          "name": "List Addresses",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me/addresses", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "addresses"] }
+          }
+        },
+        {
+          "name": "Create Address",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Home\",\n  \"line1\": \"221B Baker Street\",\n  \"city\": \"London\",\n  \"country\": \"UK\",\n  \"postalCode\": \"NW1 6XE\",\n  \"isDefault\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers/me/addresses", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "addresses"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('addressId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Address",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Manchester\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/addresses/{{addressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "addresses", "{{addressId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Address",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/addresses/{{addressId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "addresses", "{{addressId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Favorites",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me/favorites", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "favorites"] }
+          }
+        },
+        {
+          "name": "Add Favorite",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerProfileId\": \"{{providerProfileId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers/me/favorites", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "favorites"] }
+          },
+          "description": "Set the 'providerProfileId' collection variable to a real ProviderProfile id first (e.g. from a provider registration response, once that id is exposed — for now, look it up via Prisma Studio)."
+        },
+        {
+          "name": "Remove Favorite",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/favorites/{{providerProfileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "favorites", "{{providerProfileId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Booking History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "bookings"] }
+          },
+          "description": "Returns [] until the booking module is built."
+        },
+        {
+          "name": "List Payment History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me/payments", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "payments"] }
+          },
+          "description": "Returns [] until the booking/payment modules are built."
+        },
+        {
+          "name": "List Consent History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me/consents", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "consents"] }
+          }
+        },
+        {
+          "name": "Record Consent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"consentType\": \"marketing_emails\",\n  \"granted\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers/me/consents", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "consents"] }
+          }
+        },
+        {
+          "name": "Export My Data (GDPR)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me/export", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "export"] }
+          }
+        },
+        {
+          "name": "Delete My Account (GDPR)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/customers/me", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me"] }
+          },
+          "description": "Irreversible in practice (see docs). Only run this against a throwaway test account."
+        }
+      ]
+    },
+    {
+      "name": "Provider",
+      "description": "Requires a PROVIDER access token — run Auth > Register (Provider - Individual/Business) first.",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me"] }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"description\": \"10 years fixing pipes across London\",\n  \"skills\": [\"Plumbing\", \"Leak Repair\", \"Pipe Fitting\"],\n  \"yearsExperience\": 10,\n  \"contactInfo\": \"jane@platform.example\",\n  \"serviceArea\": \"Greater London\",\n  \"website\": \"https://janesplumbing.example.com\",\n  \"directorFirstName\": \"John\",\n  \"directorLastName\": \"Smith\",\n  \"directorContactInfo\": \"john.smith@acme.example\",\n  \"socialLinks\": { \"instagram\": \"https://instagram.com/janesplumbing\" },\n  \"portfolioLinks\": { \"behance\": \"https://behance.net/janesplumbing\" },\n  \"languages\": [\"en\", \"fr\"],\n  \"galleryImages\": [\"https://example.com/gallery1.jpg\", \"https://example.com/gallery2.jpg\"],\n  \"operatingHours\": { \"monday\": { \"open\": \"09:00\", \"close\": \"17:00\" } }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me"] }
+          }
+        },
+        {
+          "name": "List Certifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/certifications", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "certifications"] }
+          }
+        },
+        {
+          "name": "Add Certification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Certified Master Plumber\",\n  \"issuer\": \"UK Plumbing Board\",\n  \"fileUrl\": \"https://example.com/cert.pdf\",\n  \"verificationLink\": \"https://example.com/verify/123\",\n  \"expiryDate\": \"2027-01-01T00:00:00.000Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/certifications", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "certifications"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('certificationId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Certification",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/certifications/{{certificationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "certifications", "{{certificationId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

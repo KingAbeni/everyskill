@@ -175,6 +175,8 @@ model ProviderProfile {
   user                User                @relation(fields: [userId], references: [id])
   providerType        ProviderType
   displayName         String
+  firstName            String?
+  lastName             String?
   profileImage        String?
   coverImage           String?
   description          String?
@@ -183,6 +185,9 @@ model ProviderProfile {
   contactInfo          String?
   serviceArea          String?
   website              String?
+  directorFirstName    String?
+  directorLastName     String?
+  directorContactInfo  String?
   socialLinks         Json?
   portfolioLinks      Json?
   languages           String[]
