@@ -97,6 +97,7 @@ model User {
   refreshTokenHash  String?
   passwordResetTokenHash  String?
   passwordResetExpiresAt  DateTime?
+  deletedAt         DateTime?
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
@@ -177,6 +178,7 @@ model ProviderProfile {
   profileImage        String?
   coverImage           String?
   description          String?
+  skills               String[]
   yearsExperience      Int?
   contactInfo          String?
   serviceArea          String?
@@ -184,6 +186,7 @@ model ProviderProfile {
   socialLinks         Json?
   portfolioLinks      Json?
   languages           String[]
+  galleryImages        String[]
   operatingHours      Json?
   verificationStatus  VerificationStatus  @default(PENDING)
   createdAt           DateTime            @default(now())

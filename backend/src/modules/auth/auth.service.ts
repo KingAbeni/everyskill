@@ -81,7 +81,7 @@ export async function register(input: RegisterInput) {
 
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.passwordHash) {
+  if (!user || !user.passwordHash || user.deletedAt) {
     throw new AppError(401, "Invalid email or password");
   }
 
