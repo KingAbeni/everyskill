@@ -13,3 +13,7 @@ providerRouter.patch("/me", asyncHandler(providerController.updateProfileHandler
 providerRouter.get("/me/certifications", asyncHandler(providerController.listCertificationsHandler));
 providerRouter.post("/me/certifications", asyncHandler(providerController.createCertificationHandler));
 providerRouter.delete("/me/certifications/:certificationId", asyncHandler(providerController.deleteCertificationHandler));
+
+providerRouter.get("/me/kyc", asyncHandler(providerController.listKycDocumentsHandler));
+providerRouter.post("/me/kyc", asyncHandler(providerController.submitKycDocumentHandler));
+providerRouter.get("/me/kyc/:kycId/document-url", asyncHandler(providerController.getKycDocumentUrlHandler));

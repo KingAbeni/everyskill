@@ -29,3 +29,8 @@ export const createCertificationSchema = z.object({
   verificationLink: z.string().url().optional(),
   expiryDate: z.coerce.date().optional(),
 });
+
+export const submitKycDocumentSchema = z.object({
+  documentType: z.enum(["IDENTITY", "BUSINESS_REGISTRATION", "REPRESENTATIVE_IDENTITY"]),
+  documentPath: z.string().min(1),
+});

@@ -224,7 +224,7 @@ model KycVerification {
   providerProfileId String
   providerProfile   ProviderProfile     @relation(fields: [providerProfileId], references: [id])
   documentType      String
-  documentUrl       String
+  documentPath      String
   status            VerificationStatus  @default(PENDING)
   reviewedById      String?
   rejectionReason   String?

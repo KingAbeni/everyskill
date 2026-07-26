@@ -1,8 +1,18 @@
 import { createApp } from "./app";
 import { env } from "./config/env";
+import { ensureUploadBucketsExist } from "./config/supabaseStorage";
 
-const app = createApp();
+async function main() {
+  await ensureUploadBucketsExist();
 
-app.listen(env.port, () => {
-  console.log(`EverySkill backend listening on port ${env.port}`);
+  const app = createApp();
+
+  app.listen(env.port, () => {
+    console.log(`EverySkill backend listening on port ${env.port}`);
+  });
+}
+
+main().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });

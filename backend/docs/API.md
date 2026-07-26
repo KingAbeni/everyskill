@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -379,6 +379,118 @@ All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER*
 `name` and `fileUrl` required; `issuer`, `verificationLink`, `expiryDate` optional. Response `201`.
 
 **DELETE** `/api/providers/me/certifications/:certificationId` → `204`. Errors: `404 { "error": "Certification not found" }` if it doesn't exist or isn't yours.
+
+### KYC Documents (FR4)
+
+KYC documents are stored **privately** (unlike profile/gallery images) — see the [Upload Module](#upload-module--apiuploads) below for how to actually upload the file first.
+
+**GET** `/api/providers/me/kyc` → `200` — array of your own KYC submissions, newest first.
+
+**POST** `/api/providers/me/kyc`:
+```json
+{
+  "documentType": "IDENTITY",
+  "documentPath": "031e5c1e-.../8e3cf92c-....jpg"
+}
+```
+`documentType` is one of `"IDENTITY"` (individuals), `"BUSINESS_REGISTRATION"` or `"REPRESENTATIVE_IDENTITY"` (businesses — registration document and the director's ID, respectively). `documentPath` is the `path` returned by `POST /api/uploads/kyc` — **not** a URL. Response `201`, with `status: "PENDING"` until an admin reviews it.
+
+**GET** `/api/providers/me/kyc/:kycId/document-url` → `200`:
+```json
+{ "url": "https://<project>.supabase.co/storage/v1/object/sign/everyskill-kyc-private/...", "expiresInSeconds": 600 }
+```
+A short-lived (10 min) signed URL to view your own uploaded document. Errors: `404 { "error": "KYC document not found" }` if the id doesn't exist or isn't yours.
+
+---
+
+## Admin Module — `/api/admin` (FR4)
+
+All routes below require `Authorization: Bearer <accessToken>` for an **ADMIN** or **SUPER_ADMIN** account. Any other role gets `403 { "error": "Insufficient permissions" }`. There is no public endpoint to create admin accounts — that's a super-admin/ops task (FR24), not exposed here yet.
+
+### List KYC Requests
+
+**GET** `/api/admin/kyc` → `200` — array of all KYC submissions across all providers (each includes the full `providerProfile`), oldest first.
+
+**GET** `/api/admin/kyc?status=PENDING` — filter by `PENDING`, `VERIFIED`, or `REJECTED`.
+
+### Review a KYC Request
+
+**PATCH** `/api/admin/kyc/:kycId`
+
+Approve:
+```json
+{ "status": "VERIFIED" }
+```
+
+Reject:
+```json
+{ "status": "REJECTED", "rejectionReason": "Document image is too blurry to verify" }
+```
+`rejectionReason` is required when `status` is `"REJECTED"` (`400` if omitted).
+
+Response `200`: the updated `KycVerification` row. This single action also:
+- Sets the provider's `ProviderProfile.verificationStatus` to the same `VERIFIED`/`REJECTED` value (this is the "verified badge" from the SRS) — approving/rejecting one document is treated as approving/rejecting the provider's verification as a whole, since the current flow doesn't require multiple documents to be independently approved.
+- Writes a row to `AuditLog` (`action: "KYC_REVIEW"`) recording which admin reviewed which request and the outcome — the admin-action audit trail called for in the SRS's non-functional/admin-dashboard requirements.
+
+Errors: `404 { "error": "KYC request not found" }` if the id doesn't exist.
+
+### View a KYC Document
+
+**GET** `/api/admin/kyc/:kycId/document-url` → `200`:
+```json
+{ "url": "https://<project>.supabase.co/storage/v1/object/sign/everyskill-kyc-private/...", "expiresInSeconds": 600 }
+```
+A short-lived (10 min) signed URL for viewing any provider's uploaded document during review. Errors: `404 { "error": "KYC request not found" }`.
+
+---
+
+## Upload Module — `/api/uploads`
+
+There are **two** upload endpoints backed by **two separate Supabase Storage buckets**, split by sensitivity:
+
+| Endpoint | Bucket | Visibility | Used for |
+|---|---|---|---|
+| `POST /api/uploads` | `everyskill-uploads` | Public | Profile/cover images, gallery images, certification files |
+| `POST /api/uploads/kyc` | `everyskill-kyc-private` | Private | KYC identity/business documents |
+
+### Public Upload
+
+**POST** `/api/uploads`
+Header: `Authorization: Bearer <accessToken>` (any authenticated role — customer, provider, admin)
+Body: `multipart/form-data` with a single field named `file`.
+
+Example (curl):
+```
+curl -X POST http://localhost:4000/api/uploads \
+  -H "Authorization: Bearer <accessToken>" \
+  -F "file=@photo.jpg"
+```
+
+Response `201`:
+```json
+{ "url": "https://<project>.supabase.co/storage/v1/object/public/everyskill-uploads/<userId>/<uuid>.jpg" }
+```
+The `url` is permanent — use it directly in `profileImage`, `coverImage`, `galleryImages`, or certification `fileUrl`.
+
+### Private KYC Upload
+
+**POST** `/api/uploads/kyc` — **PROVIDER role only** (`403` for any other role)
+Header: `Authorization: Bearer <accessToken>`
+Body: same as above — `multipart/form-data` with a `file` field.
+
+Response `201`:
+```json
+{ "path": "<userId>/<uuid>.jpg" }
+```
+Note this returns a storage **path**, not a URL — the file isn't publicly reachable. Pass this `path` as `documentPath` to `POST /api/providers/me/kyc`. To actually *view* the file afterward, use the signed-URL endpoints (`GET /api/providers/me/kyc/:kycId/document-url` or `GET /api/admin/kyc/:kycId/document-url`), which mint a fresh 10-minute link on each call — there is no permanent link to a KYC document anywhere in the system.
+
+### Shared constraints (both endpoints)
+- Allowed types: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`. Anything else → `400 { "error": "Unsupported file type. Allowed: JPEG, PNG, WebP, PDF." }`.
+- Max size: 10MB. Larger → `400` with Multer's size-limit message.
+- No file sent → `400 { "error": "No file provided (expected multipart/form-data field 'file')" }`.
+- No/invalid token → `401`.
+
+Requires `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `backend/.env` (see `.env.example`) — the service role key is server-side only and must never be shared with any client. Both buckets (`SUPABASE_STORAGE_BUCKET` and `SUPABASE_KYC_BUCKET`) are created automatically on server startup if they don't already exist.
 
 ---
 

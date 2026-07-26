@@ -5,6 +5,8 @@ import { requestLogger } from "./middleware/requestLogger";
 import { authRouter } from "./modules/auth/auth.routes";
 import { customerRouter } from "./modules/customer/customer.routes";
 import { providerRouter } from "./modules/provider/provider.routes";
+import { adminRouter } from "./modules/admin/admin.routes";
+import { uploadRouter } from "./modules/upload/upload.routes";
 
 export function createApp() {
   const app = express();
@@ -20,6 +22,8 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/customers", customerRouter);
   app.use("/api/providers", providerRouter);
+  app.use("/api/admin", adminRouter);
+  app.use("/api/uploads", uploadRouter);
 
   app.use(errorHandler);
 

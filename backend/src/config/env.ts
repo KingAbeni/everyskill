@@ -24,4 +24,10 @@ export const env = {
     clientId: process.env.GOOGLE_CLIENT_ID ?? "",
     clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
   },
+  supabaseStorage: {
+    url: required("SUPABASE_URL"),
+    serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
+    bucket: process.env.SUPABASE_STORAGE_BUCKET ?? "everyskill-uploads",
+    kycBucket: process.env.SUPABASE_KYC_BUCKET ?? "everyskill-kyc-private",
+  },
 };
