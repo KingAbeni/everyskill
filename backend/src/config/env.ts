@@ -30,4 +30,12 @@ export const env = {
     bucket: process.env.SUPABASE_STORAGE_BUCKET ?? "everyskill-uploads",
     kycBucket: process.env.SUPABASE_KYC_BUCKET ?? "everyskill-kyc-private",
   },
+  bootstrapSuperAdmin: {
+    email: process.env.SUPER_ADMIN_EMAIL,
+    password: process.env.SUPER_ADMIN_PASSWORD,
+  },
+  groq: {
+    apiKey: process.env.GROQ_API_KEY,
+    model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
+  },
 };

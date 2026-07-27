@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **AI Category Recommendation (FR7)**, **Service Listing Management (FR6)**, **Availability & Schedule Management (FR8)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -187,6 +187,35 @@ Errors:
 | `400` | `{ "error": "Invalid or expired reset token" }` | Token malformed, wrong secret, past its 1h expiry, already used, or superseded by a newer reset request |
 
 On success, the user's refresh token is also revoked, so **all existing sessions are logged out** and the user must log in again with the new password.
+
+---
+
+### Change Password
+
+**POST** `/api/auth/change-password`
+Header: `Authorization: Bearer <accessToken>` (any role — customer, provider, admin, super admin)
+
+Body:
+```json
+{ "currentPassword": "OldPassword123", "newPassword": "NewPassword456" }
+```
+
+Response `200`:
+```json
+{ "message": "Password changed. Please log in again on other devices." }
+```
+
+Self-service password change for an already-logged-in user (as opposed to `forgot-password`/`reset-password`, which is for a user who's locked out). Requires knowing the current password.
+
+Errors:
+| Status | Body | Cause |
+|---|---|---|
+| `400` | `{ "error": "Validation failed", ... }` | Missing `currentPassword`, or `newPassword` under 8 characters |
+| `400` | `{ "error": "This account has no password set" }` | Account was created via social login (Google OAuth, FR1) and has no password to verify against |
+| `401` | `{ "error": "Current password is incorrect" }` | `currentPassword` doesn't match |
+| `401` | `{ "error": "Missing or invalid Authorization header" }` / `{ "error": "Invalid or expired access token" }` | No/invalid/expired access token |
+
+On success, the refresh token is also revoked (same as `reset-password`) — **other devices/sessions are logged out**, but the access token used for this request stays valid until its own 15-minute expiry.
 
 ---
 
@@ -403,9 +432,13 @@ A short-lived (10 min) signed URL to view your own uploaded document. Errors: `4
 
 ---
 
-## Admin Module — `/api/admin` (FR4)
+## Admin Module — `/api/admin` (FR4, FR24)
 
-All routes below require `Authorization: Bearer <accessToken>` for an **ADMIN** or **SUPER_ADMIN** account. Any other role gets `403 { "error": "Insufficient permissions" }`. There is no public endpoint to create admin accounts — that's a super-admin/ops task (FR24), not exposed here yet.
+All routes below require `Authorization: Bearer <accessToken>` for an **ADMIN** or **SUPER_ADMIN** account. Any other role gets `403 { "error": "Insufficient permissions" }`. The Administrator-management routes further below are **SUPER_ADMIN only** — an `ADMIN` token gets the same `403`.
+
+There is still no public self-registration for admin accounts (by design — it would be a privilege-escalation hole). Instead:
+- The **first** `SUPER_ADMIN` is created by running `npm run seed` once, with `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` set in `backend/.env` (see `.env.example`). Safe to re-run — it's a no-op if that email already has an account.
+- Every `ADMIN` (and any additional `SUPER_ADMIN`) after that is created via `POST /api/admin/admins` below, by an existing `SUPER_ADMIN`.
 
 ### List KYC Requests
 
@@ -441,6 +474,201 @@ Errors: `404 { "error": "KYC request not found" }` if the id doesn't exist.
 { "url": "https://<project>.supabase.co/storage/v1/object/sign/everyskill-kyc-private/...", "expiresInSeconds": 600 }
 ```
 A short-lived (10 min) signed URL for viewing any provider's uploaded document during review. Errors: `404 { "error": "KYC request not found" }`.
+
+### List Administrators
+
+**GET** `/api/admin/admins` — **SUPER_ADMIN only** → `200` — array of every `ADMIN`/`SUPER_ADMIN` account (`{ id, email, role, status, createdAt }`), oldest first.
+
+### Create an Administrator
+
+**POST** `/api/admin/admins` — **SUPER_ADMIN only**:
+```json
+{ "email": "new-admin@example.com", "password": "SuperSecret123", "role": "ADMIN" }
+```
+`email`, `password` (min 8 chars) required. `role` is `"ADMIN"` or `"SUPER_ADMIN"`, defaults to `"ADMIN"` if omitted. The account is created with `emailVerified: true` (no email-verification step for admin-created accounts). Response `201`: `{ id, email, role, status, createdAt }`.
+
+Writes an `AuditLog` row (`action: "ADMIN_ACCOUNT_CREATED"`) recording which `SUPER_ADMIN` created the account.
+
+Errors: `409 { "error": "An account with this email already exists" }`.
+
+### Force-Reset an Administrator's Password
+
+**PATCH** `/api/admin/admins/:userId/password` — **SUPER_ADMIN only**:
+```json
+{ "newPassword": "BrandNewPassword123" }
+```
+Directly sets the target account's password — no email/token round-trip. Only valid for accounts with role `ADMIN` or `SUPER_ADMIN` (use this for offboarding or lockout recovery, not for customers/providers). Response `204`. Also revokes the target's current refresh token (forces re-login on all devices) and clears any pending self-service reset token, and writes an `AuditLog` row (`action: "ADMIN_PASSWORD_FORCE_RESET"`).
+
+Errors: `404 { "error": "Admin account not found" }` if the id doesn't exist or isn't an `ADMIN`/`SUPER_ADMIN`.
+
+Note: the ordinary self-service flow (`POST /api/auth/forgot-password` + `POST /api/auth/reset-password`, described in the Auth Module above) also works unchanged for `ADMIN`/`SUPER_ADMIN` accounts — it's keyed by email regardless of role. This endpoint is only for a *super-admin acting on someone else's account*.
+
+---
+
+## Categories — `/api/categories` (FR6)
+
+### List Categories
+
+**GET** `/api/categories` → `200` — array of all categories (flat list, `{ id, name, parentId }`), ordered by name. No auth required. Build a tree client-side from `parentId` if needed.
+
+### Create Category
+
+**POST** `/api/categories` — **ADMIN/SUPER_ADMIN only**.
+```json
+{ "name": "Plumbing", "parentId": "category-uuid" }
+```
+`name` required and must be unique; `parentId` optional. Response `201`.
+
+Errors: `404 { "error": "Parent category not found" }` if `parentId` doesn't exist; `409 { "error": "A category with this name already exists" }`.
+
+### Update Category
+
+**PATCH** `/api/categories/:categoryId` — **ADMIN/SUPER_ADMIN only**. Same fields as create, both optional. Pass `parentId: null` to move a category back to top-level.
+
+Errors: `404 { "error": "Category not found" }`; `400 { "error": "A category cannot be its own parent" }`; `409` on duplicate name.
+
+### Delete Category
+
+**DELETE** `/api/categories/:categoryId` — **ADMIN/SUPER_ADMIN only** → `204`.
+
+Errors: `404 { "error": "Category not found" }`; `409 { "error": "Cannot delete a category that has subcategories" }` or `409 { "error": "Cannot delete a category that has listings" }`.
+
+---
+
+## Service Listings — Provider management `/api/providers/me/listings` (FR6)
+
+All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER** account (same auth rules as the rest of the Provider Module).
+
+A listing can belong to **multiple categories** (many-to-many) — pass one or more ids in `categoryIds`.
+
+### List my listings
+
+**GET** `/api/providers/me/listings` → `200` — array of your own listings (including inactive ones), each with its `categories` array, newest first.
+
+### Get one of my listings
+
+**GET** `/api/providers/me/listings/:listingId` → `200`, including its `categories` array. Errors: `404 { "error": "Listing not found" }` if it doesn't exist or isn't yours.
+
+### AI category recommendation (FR7)
+
+**POST** `/api/providers/me/listings/recommend-category`:
+```json
+{
+  "title": "Emergency Leak Repair",
+  "description": "Same-day callout for burst pipes and leaks."
+}
+```
+Call this **before** creating the listing, to get an AI-suggested category for your `title`/`description`, drawn from the existing `Category` list (see FR6 above — create categories first if none exist). Response `200`:
+```json
+{
+  "category": { "id": "category-uuid", "name": "Plumbing" },
+  "confidence": "high",
+  "reasoning": "The listing describes emergency plumbing repair work."
+}
+```
+This is advisory only — it doesn't create or modify anything; pass the returned `category.id` into `categoryIds` on the actual `POST /api/providers/me/listings` call if you want to use it.
+
+Backed by [Groq](https://console.groq.com)'s free-tier OpenAI-compatible API (`GROQ_API_KEY` in `backend/.env` — see `.env.example`). Errors:
+| Status | Body | Cause |
+|---|---|---|
+| `400` | `{ "error": "Validation failed", ... }` | Missing `title` or `description` |
+| `409` | `{ "error": "No categories exist yet to recommend from" }` | No categories have been created (see Categories, FR6) |
+| `500` | `{ "error": "AI category recommendation is not configured (missing GROQ_API_KEY)" }` | `GROQ_API_KEY` not set in `.env` |
+| `502` | `{ "error": "Category recommendation service is unavailable" }` | Groq API request failed (network error or non-2xx response) |
+| `502` | `{ "error": "Category recommendation service returned ..." }` | The model's response wasn't valid JSON, didn't match the expected shape, or named a category id that doesn't exist (hallucination guard) |
+
+### Create a listing
+
+**POST** `/api/providers/me/listings`:
+```json
+{
+  "categoryIds": ["category-uuid-1", "category-uuid-2"],
+  "title": "Emergency Leak Repair",
+  "description": "Same-day callout for burst pipes and leaks.",
+  "pricingType": "FIXED",
+  "price": 75.00,
+  "durationMinutes": 60,
+  "images": ["https://example.com/listing1.jpg"],
+  "serviceArea": "Greater London",
+  "tags": ["plumbing", "emergency"],
+  "cancellationCutoffHours": 24
+}
+```
+`categoryIds` (non-empty array), `title`, `description`, `price`, `durationMinutes` required. `pricingType` is `"FIXED"` (price for the whole task) or `"HOURLY"` (price per hour) — defaults to `"FIXED"` if omitted. `price` means "total price for the task" under `FIXED`, or "rate per hour" under `HOURLY`; `durationMinutes` is always the estimated/scheduled duration (used for booking slots either way). `images`, `tags` default to `[]`; `cancellationCutoffHours` defaults to `24` (see FR13 — this is the cutoff, relative to the booking time, after which a customer cancellation or no-show gets recorded against the responsible party). Response `201`, with the created listing's `categories` array populated. Errors: `404 { "error": "One or more categories not found" }`.
+
+### Update a listing
+
+**PATCH** `/api/providers/me/listings/:listingId` — any subset of the create fields, plus `isActive: false` to unpublish (hide from public search) without deleting it. Passing `categoryIds` **replaces** the full set of categories (not a merge) — it must still be non-empty. Response `200`. Errors: `404` for unknown/not-yours listing, or `404 { "error": "One or more categories not found" }`.
+
+### Delete a listing
+
+**DELETE** `/api/providers/me/listings/:listingId` → `204`. Errors: `404 { "error": "Listing not found" }`.
+
+---
+
+## Service Listings — Public browsing `/api/listings` (FR6/FR9)
+
+No auth required. Only listings with `isActive: true` are returned.
+
+### Search / browse listings
+
+**GET** `/api/listings` → `200` — array of listings, each including its `categories` array and a summary of the owning `providerProfile` (`id`, `displayName`, `providerType`, `verificationStatus`, `profileImage`), newest first.
+
+Optional query params (all combinable): `categoryId` (matches listings that include this category — a listing can have several), `providerProfileId`, `search` (matches `title`/`description`, case-insensitive), `pricingType` (`"HOURLY"` or `"FIXED"`), `minPrice`, `maxPrice`.
+
+Example: `GET /api/listings?categoryId=<uuid>&search=leak&pricingType=HOURLY&minPrice=20&maxPrice=100`
+
+### Get one listing
+
+**GET** `/api/listings/:listingId` → `200`. Errors: `404 { "error": "Listing not found" }` if it doesn't exist or is inactive.
+
+### Get a listing's availability
+
+**GET** `/api/listings/:listingId/availability` → `200` — array of the owning provider's `AvailabilitySlot` rows (see FR8 below), so a customer can see when they could book before doing so. Errors: `404 { "error": "Listing not found" }` if the listing doesn't exist or is inactive.
+
+---
+
+## Availability & Schedule Management — `/api/providers/me/availability` (FR8)
+
+All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER** account (same auth rules as the rest of the Provider Module).
+
+An `AvailabilitySlot` is either:
+- **Recurring weekly**: `dayOfWeek` set (`0`=Sunday … `6`=Saturday), `date` omitted — repeats every week.
+- **Specific-date**: `date` set (e.g. a holiday or a one-off extra shift), `dayOfWeek` omitted.
+
+Exactly one of `dayOfWeek`/`date` must be provided — never both, never neither. `startTime`/`endTime` are 24-hour `"HH:MM"` strings, and `endTime` must be after `startTime`.
+
+`isBlocked` distinguishes an **open** window (`false`, the default) from a **blocked** one (`true`, e.g. a lunch break or a day off). A blocked window is allowed to overlap an open window on the same `dayOfWeek`/`date` — that's how you carve out a break inside a working day. Two **open** windows overlapping on the same `dayOfWeek`/`date` are rejected, since that would be an ambiguous/duplicate availability definition.
+
+Note: this defines a provider's *declared* availability. Actual double-booking prevention against real bookings will be enforced once the Booking module (FR11) exists and checks a requested time against both these slots and other confirmed bookings.
+
+### List my availability
+
+**GET** `/api/providers/me/availability` → `200` — array of all your slots (recurring and specific-date, open and blocked), ordered by day/date/time.
+
+### Create an availability slot
+
+**POST** `/api/providers/me/availability`:
+```json
+{ "dayOfWeek": 1, "startTime": "09:00", "endTime": "17:00" }
+```
+Or a specific-date block:
+```json
+{ "date": "2026-08-15", "startTime": "00:00", "endTime": "23:59", "isBlocked": true }
+```
+Response `201`. Errors:
+| Status | Body | Cause |
+|---|---|---|
+| `400` | `{ "error": "Validation failed", ... }` | Both/neither `dayOfWeek`/`date` provided, bad `HH:MM` format, or `endTime` not after `startTime` |
+| `409` | `{ "error": "This availability window overlaps with an existing available slot" }` | Another **open** slot already covers part of this time range on the same `dayOfWeek`/`date` |
+
+### Update an availability slot
+
+**PATCH** `/api/providers/me/availability/:slotId` — any subset of the create fields (including switching between `dayOfWeek` and `date` — pass the other one as `null` to clear it). Re-validates the exactly-one-of rule, time ordering, and overlap (excluding itself) after merging with the existing row. Response `200`. Errors: same shapes as create, plus `404 { "error": "Availability slot not found" }` if it doesn't exist or isn't yours.
+
+### Delete an availability slot
+
+**DELETE** `/api/providers/me/availability/:slotId` → `204`. Errors: `404 { "error": "Availability slot not found" }`.
 
 ---
 

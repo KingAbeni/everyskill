@@ -4,10 +4,11 @@ import { prisma } from "../../config/prisma";
 import { env } from "../../config/env";
 import { AppError } from "../../utils/AppError";
 import { AccessTokenPayload } from "../../middleware/auth";
-import { registerSchema } from "./auth.schemas";
+import { changePasswordSchema, registerSchema } from "./auth.schemas";
 import { z } from "zod";
 
 type RegisterInput = z.infer<typeof registerSchema>;
+type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
 function signAccessToken(payload: AccessTokenPayload) {
   const options: jwt.SignOptions = { expiresIn: env.jwt.accessExpiresIn as jwt.SignOptions["expiresIn"] };
@@ -177,6 +178,30 @@ export async function resetPassword(token: string, newPassword: string) {
       passwordResetTokenHash: null,
       passwordResetExpiresAt: null,
       refreshTokenHash: null, // force re-login on all devices after a password reset
+    },
+  });
+}
+
+export async function changePassword(userId: string, input: ChangePasswordInput) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user?.passwordHash) {
+    throw new AppError(400, "This account has no password set");
+  }
+
+  const valid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!valid) {
+    throw new AppError(401, "Current password is incorrect");
+  }
+
+  const passwordHash = await bcrypt.hash(input.newPassword, 10);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordHash,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+      refreshTokenHash: null, // force re-login on all other devices after a password change
     },
   });
 }

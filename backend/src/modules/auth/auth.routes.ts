@@ -2,6 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { requireAuth } from "../../middleware/auth";
 import {
+  changePasswordHandler,
   forgotPasswordHandler,
   loginHandler,
   logoutHandler,
@@ -18,3 +19,4 @@ authRouter.post("/refresh", asyncHandler(refreshHandler));
 authRouter.post("/logout", requireAuth, asyncHandler(logoutHandler));
 authRouter.post("/forgot-password", asyncHandler(forgotPasswordHandler));
 authRouter.post("/reset-password", asyncHandler(resetPasswordHandler));
+authRouter.post("/change-password", requireAuth, asyncHandler(changePasswordHandler));

@@ -1,5 +1,12 @@
 import { Request, Response } from "express";
-import { forgotPasswordSchema, loginSchema, refreshSchema, registerSchema, resetPasswordSchema } from "./auth.schemas";
+import {
+  changePasswordSchema,
+  forgotPasswordSchema,
+  loginSchema,
+  refreshSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "./auth.schemas";
 import * as authService from "./auth.service";
 
 function sanitizeUser(user: { id: string; email: string; role: string; emailVerified: boolean }) {
@@ -39,4 +46,10 @@ export async function resetPasswordHandler(req: Request, res: Response) {
   const { token, newPassword } = resetPasswordSchema.parse(req.body);
   await authService.resetPassword(token, newPassword);
   res.status(200).json({ message: "Password has been reset. Please log in again." });
+}
+
+export async function changePasswordHandler(req: Request, res: Response) {
+  const input = changePasswordSchema.parse(req.body);
+  await authService.changePassword(req.user!.sub, input);
+  res.status(200).json({ message: "Password changed. Please log in again on other devices." });
 }

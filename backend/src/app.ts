@@ -7,6 +7,8 @@ import { customerRouter } from "./modules/customer/customer.routes";
 import { providerRouter } from "./modules/provider/provider.routes";
 import { adminRouter } from "./modules/admin/admin.routes";
 import { uploadRouter } from "./modules/upload/upload.routes";
+import { categoryRouter } from "./modules/category/category.routes";
+import { listingRouter } from "./modules/listing/listing.routes";
 
 export function createApp() {
   const app = express();
@@ -24,6 +26,8 @@ export function createApp() {
   app.use("/api/providers", providerRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/uploads", uploadRouter);
+  app.use("/api/categories", categoryRouter);
+  app.use("/api/listings", listingRouter);
 
   app.use(errorHandler);
 

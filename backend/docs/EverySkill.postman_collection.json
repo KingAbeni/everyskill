@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "EverySkill Backend",
-    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password), the customer module (FR2), the provider module (FR3: profile, skills, gallery, certifications, KYC submission), the admin module (FR4: KYC review), and the generic file upload endpoint used by all of the above. Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically. The Admin folder needs a manually-promoted admin account (see docs/API.md) — there's no public admin-registration endpoint. The Uploads request needs a real file attached manually (Postman body > form-data > file field).",
+    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password, change-password), the customer module (FR2), the provider module (FR3: profile, skills, gallery, certifications, KYC submission, plus FR6 listing management, FR7 AI category recommendation, and FR8 availability management), the admin module (FR4: KYC review; FR6: category management; FR24: administrator management), the public Categories/Listings/listing-availability browsing endpoints (FR6/FR8/FR9), and the generic file upload endpoint used by all of the above. Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically. For the Admin folder: run `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) to bootstrap the first SUPER_ADMIN, then run 'Auth > Login (Super Admin)' — every other admin account is created from there via 'Admin > Create Administrator', no public admin-registration endpoint exists. The Uploads request needs a real file attached manually (Postman body > form-data > file field). Run 'Categories > Create Category' and 'Categories > Create Subcategory' (as admin) before 'Provider > Create Listing' — they capture 'categoryId' and 'categoryId2' into collection variables. A listing can belong to multiple categories (categoryIds is an array).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -13,12 +13,22 @@
     { "key": "providerAccessToken", "value": "" },
     { "key": "providerRefreshToken", "value": "" },
     { "key": "adminAccessToken", "value": "" },
+    { "key": "superAdminEmail", "value": "superadmin@everyskill.local" },
+    { "key": "superAdminPassword", "value": "" },
+    { "key": "superAdminAccessToken", "value": "" },
+    { "key": "newAdminEmail", "value": "new-admin@example.com" },
+    { "key": "newAdminPassword", "value": "SuperSecret123" },
+    { "key": "newAdminUserId", "value": "" },
     { "key": "resetToken", "value": "" },
     { "key": "addressId", "value": "" },
     { "key": "providerProfileId", "value": "" },
     { "key": "certificationId", "value": "" },
     { "key": "kycId", "value": "" },
-    { "key": "documentPath", "value": "" }
+    { "key": "documentPath", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "categoryId2", "value": "" },
+    { "key": "listingId", "value": "" },
+    { "key": "slotId", "value": "" }
   ],
   "item": [
     {
@@ -136,24 +146,24 @@
           ]
         },
         {
-          "name": "Login (Admin)",
+          "name": "Login (Super Admin)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"SuperSecret123\"\n}"
+              "raw": "{\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
           },
-          "description": "There's no public admin-registration endpoint. Register a normal account, manually promote its role to ADMIN or SUPER_ADMIN directly in the database (see docs/API.md), then log in here.",
+          "description": "There's no public registration endpoint for privileged roles. The first SUPER_ADMIN is bootstrapped by running `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) — set the 'superAdminPassword' collection variable to match, then log in here. From there, use Admin > Create Administrator to make ADMIN (or additional SUPER_ADMIN) accounts.",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "if (pm.response.code === 200) {",
-                  "  pm.collectionVariables.set('adminAccessToken', pm.response.json().accessToken);",
+                  "  pm.collectionVariables.set('superAdminAccessToken', pm.response.json().accessToken);",
                   "}"
                 ]
               }
@@ -219,6 +229,22 @@
             "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "reset-password"] }
           },
           "description": "Paste the token logged to the console by 'Forgot Password' into the 'resetToken' collection variable first (Collection > Variables tab)."
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewSuperSecret456\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/change-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "change-password"] }
+          },
+          "description": "Self-service password change for an already-logged-in user (any role) — requires the current password, unlike Forgot/Reset Password. Also revokes the refresh token (other sessions get logged out). Swap {{accessToken}} for {{providerAccessToken}}/{{adminAccessToken}}/{{superAdminAccessToken}} to test other roles."
         }
       ]
     },
@@ -486,6 +512,202 @@
           }
         },
         {
+          "name": "List My Listings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/listings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings"] }
+          }
+        },
+        {
+          "name": "Recommend Category (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Emergency Leak Repair\",\n  \"description\": \"Same-day callout for burst pipes and leaks.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/listings/recommend-category", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings", "recommend-category"] }
+          },
+          "description": "FR7 — advisory only, doesn't create anything. Returns { category: {id, name}, confidence, reasoning } drawn from your existing Category list (run Categories > Create Category first if none exist). Requires GROQ_API_KEY set in backend/.env (free key at console.groq.com) — without it this returns 500."
+        },
+        {
+          "name": "Create Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryIds\": [\"{{categoryId}}\", \"{{categoryId2}}\"],\n  \"title\": \"Emergency Leak Repair\",\n  \"description\": \"Same-day callout for burst pipes and leaks.\",\n  \"pricingType\": \"FIXED\",\n  \"price\": 75.00,\n  \"durationMinutes\": 60,\n  \"images\": [\"https://example.com/listing1.jpg\"],\n  \"serviceArea\": \"Greater London\",\n  \"tags\": [\"plumbing\", \"emergency\"],\n  \"cancellationCutoffHours\": 24\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/listings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings"] }
+          },
+          "description": "categoryIds is a non-empty array — a listing can belong to multiple categories. Run Categories > Create Category and Create Subcategory (as admin) first to populate 'categoryId' and 'categoryId2'. pricingType is FIXED (price = total for the whole task) or HOURLY (price = rate per hour) — see 'Create Listing (Hourly)' for the other mode.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('listingId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Listing (Hourly)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryIds\": [\"{{categoryId}}\"],\n  \"title\": \"General Handyman Services\",\n  \"description\": \"Odd jobs billed by the hour — furniture assembly, small repairs, mounting.\",\n  \"pricingType\": \"HOURLY\",\n  \"price\": 25.00,\n  \"durationMinutes\": 60,\n  \"tags\": [\"handyman\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/listings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings"] }
+          },
+          "description": "Same endpoint as 'Create Listing' but pricingType: HOURLY — here price (25.00) is the rate charged per hour, not a total. durationMinutes is still the estimated/scheduled duration used for booking slots."
+        },
+        {
+          "name": "Get My Listing",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "listings", "{{listingId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update My Listing",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 85.00,\n  \"isActive\": true,\n  \"categoryIds\": [\"{{categoryId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "listings", "{{listingId}}"]
+            }
+          },
+          "description": "Any subset of the create fields, plus isActive: false to unpublish without deleting. categoryIds REPLACES the full set of categories (here, dropping categoryId2 and keeping only categoryId) — it must stay non-empty."
+        },
+        {
+          "name": "Delete My Listing",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "listings", "{{listingId}}"]
+            }
+          }
+        },
+        {
+          "name": "List My Availability",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/availability", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "availability"] }
+          }
+        },
+        {
+          "name": "Create Availability Slot (Recurring)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"09:00\",\n  \"endTime\": \"17:00\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/availability", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "availability"] }
+          },
+          "description": "dayOfWeek is 0 (Sunday) through 6 (Saturday) — this creates a weekly-repeating open window every Monday 9am-5pm. Captures the id into 'slotId'.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('slotId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Availability Slot (Blocked Date)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-15\",\n  \"startTime\": \"00:00\",\n  \"endTime\": \"23:59\",\n  \"isBlocked\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/availability", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "availability"] }
+          },
+          "description": "date (not dayOfWeek) blocks one specific calendar date — e.g. a holiday. isBlocked windows are allowed to overlap open windows (that's how a lunch-break carve-out works); two OPEN windows overlapping on the same day/date get a 409."
+        },
+        {
+          "name": "Update Availability Slot",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endTime\": \"18:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/availability/{{slotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "availability", "{{slotId}}"]
+            }
+          },
+          "description": "Any subset of the create fields. To switch a slot from recurring to specific-date (or vice versa), pass the other field explicitly as null."
+        },
+        {
+          "name": "Delete Availability Slot",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/availability/{{slotId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "availability", "{{slotId}}"]
+            }
+          }
+        },
+        {
           "name": "List My KYC Documents",
           "request": {
             "method": "GET",
@@ -563,8 +785,90 @@
     },
     {
       "name": "Admin",
-      "description": "Requires an ADMIN or SUPER_ADMIN access token. There's no public registration for admin accounts — register a normal account, then manually update its role to ADMIN in the database, then run Auth > Login (Admin).",
+      "description": "KYC requests require an ADMIN or SUPER_ADMIN access token. Administrator-management requests (bottom of this folder) require SUPER_ADMIN specifically. Bootstrap the first SUPER_ADMIN via `npm run seed`, then run Auth > Login (Super Admin).",
       "item": [
+        {
+          "name": "List Administrators",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/admins", "host": ["{{baseUrl}}"], "path": ["api", "admin", "admins"] }
+          },
+          "description": "SUPER_ADMIN only. Returns every ADMIN/SUPER_ADMIN account."
+        },
+        {
+          "name": "Create Administrator",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{newAdminEmail}}\",\n  \"password\": \"{{newAdminPassword}}\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/admins", "host": ["{{baseUrl}}"], "path": ["api", "admin", "admins"] }
+          },
+          "description": "SUPER_ADMIN only. role is \"ADMIN\" or \"SUPER_ADMIN\" (defaults to ADMIN). Captures the new account's id into 'newAdminUserId' — run 'Auth > Login (New Admin)' afterward to get a usable adminAccessToken.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('newAdminUserId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (New Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{newAdminEmail}}\",\n  \"password\": \"{{newAdminPassword}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+          },
+          "description": "Logs in as the account created by 'Create Administrator', populating 'adminAccessToken' for the KYC requests below.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('adminAccessToken', pm.response.json().accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Force-Reset Administrator Password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newPassword\": \"BrandNewPassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/admins/{{newAdminUserId}}/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "admins", "{{newAdminUserId}}", "password"]
+            }
+          },
+          "description": "SUPER_ADMIN only. Directly sets the target ADMIN/SUPER_ADMIN account's password (offboarding/lockout recovery) — no email/token round-trip. Revokes their refresh token and clears any pending self-service reset token."
+        },
         {
           "name": "List KYC Requests",
           "request": {
@@ -637,6 +941,162 @@
             }
           },
           "description": "Returns a signed URL valid for 10 minutes, for reviewing any provider's document."
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "description": "GET is public. POST/PATCH/DELETE require an ADMIN or SUPER_ADMIN access token — see Admin folder for how to get one.",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+          }
+        },
+        {
+          "name": "Create Category",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Plumbing\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('categoryId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Subcategory",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Emergency Plumbing\",\n  \"parentId\": \"{{categoryId}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+          },
+          "description": "parentId is optional — omit it to create a top-level category. Captures its id into 'categoryId2', so Provider > Create Listing can attach a listing to two categories at once.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('categoryId2', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Category",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Plumbing & Pipefitting\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}"]
+            }
+          },
+          "description": "Pass parentId: null to move a category back to top-level."
+        },
+        {
+          "name": "Delete Category",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "categories", "{{categoryId}}"]
+            }
+          },
+          "description": "Fails with 409 if the category has subcategories or listings attached."
+        }
+      ]
+    },
+    {
+      "name": "Listings (Public)",
+      "description": "No auth required. Only returns listings with isActive: true.",
+      "item": [
+        {
+          "name": "Search Listings",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/listings", "host": ["{{baseUrl}}"], "path": ["api", "listings"] }
+          }
+        },
+        {
+          "name": "Search Listings (Filtered)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/listings?categoryId={{categoryId}}&search=leak&pricingType=FIXED&minPrice=20&maxPrice=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings"],
+              "query": [
+                { "key": "categoryId", "value": "{{categoryId}}" },
+                { "key": "search", "value": "leak" },
+                { "key": "pricingType", "value": "FIXED" },
+                { "key": "minPrice", "value": "20" },
+                { "key": "maxPrice", "value": "100" }
+              ]
+            }
+          },
+          "description": "All query params are optional and combinable: categoryId, providerProfileId, search (title/description, case-insensitive), pricingType (HOURLY or FIXED), minPrice, maxPrice."
+        },
+        {
+          "name": "Get Listing by Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "{{listingId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Listing Availability",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}/availability",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "listings", "{{listingId}}", "availability"]
+            }
+          },
+          "description": "Resolves the listing to its owning provider and returns that provider's AvailabilitySlot rows (FR8) — lets a customer see open/blocked windows before booking."
         }
       ]
     },

@@ -84,6 +84,11 @@ enum NoShowParty {
   PROVIDER
 }
 
+enum PricingType {
+  HOURLY
+  FIXED
+}
+
 // ---------- Core identity ----------
 
 model User {
@@ -241,17 +246,17 @@ model Category {
   parent   Category?  @relation("CategoryToSub", fields: [parentId], references: [id])
   children Category[] @relation("CategoryToSub")
 
-  listings ServiceListing[]
+  listings ServiceListing[] @relation("ListingCategories")
 }
 
 model ServiceListing {
   id                 String          @id @default(uuid())
   providerProfileId  String
   providerProfile    ProviderProfile @relation(fields: [providerProfileId], references: [id])
-  categoryId         String
-  category           Category        @relation(fields: [categoryId], references: [id])
+  categories         Category[]      @relation("ListingCategories")
   title              String
   description        String
+  pricingType        PricingType     @default(FIXED)
   price              Decimal
   durationMinutes    Int
   images             String[]
