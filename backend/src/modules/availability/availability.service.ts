@@ -18,6 +18,38 @@ async function getProviderProfileOrThrow(userId: string) {
   return profile;
 }
 
+/**
+ * Search-level "is this provider available on this date" check — used to filter listings
+ * (FR9). Only a *full-day* block ("00:00"-"23:59", the convention used for holidays/days off)
+ * excludes a provider; partial blocks (e.g. a lunch break) don't, since the provider is still
+ * open part of the day. Precise time-slot conflict checking against a specific requested time
+ * happens at booking time instead (FR11), not here.
+ */
+export async function listAvailableProviderIds(date: Date): Promise<string[]> {
+  const normalized = normalizeDate(date);
+  const dayOfWeek = normalized.getUTCDay();
+
+  const [fullDayBlocks, openForDate, openRecurring] = await Promise.all([
+    prisma.availabilitySlot.findMany({
+      where: { date: normalized, isBlocked: true, startTime: "00:00", endTime: "23:59" },
+      select: { providerProfileId: true },
+    }),
+    prisma.availabilitySlot.findMany({
+      where: { date: normalized, isBlocked: false },
+      select: { providerProfileId: true },
+    }),
+    prisma.availabilitySlot.findMany({
+      where: { dayOfWeek, isBlocked: false },
+      select: { providerProfileId: true },
+    }),
+  ]);
+
+  const blocked = new Set(fullDayBlocks.map((s) => s.providerProfileId));
+  const open = new Set([...openForDate, ...openRecurring].map((s) => s.providerProfileId));
+
+  return [...open].filter((id) => !blocked.has(id));
+}
+
 async function getOwnedSlotOrThrow(userId: string, slotId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const slot = await prisma.availabilitySlot.findUnique({ where: { id: slotId } });

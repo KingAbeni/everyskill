@@ -189,6 +189,8 @@ model ProviderProfile {
   yearsExperience      Int?
   contactInfo          String?
   serviceArea          String?
+  latitude             Float?
+  longitude            Float?
   website              String?
   directorFirstName    String?
   directorLastName     String?

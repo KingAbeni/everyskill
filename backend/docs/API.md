@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **AI Category Recommendation (FR7)**, **Service Listing Management (FR6)**, **Availability & Schedule Management (FR8)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -346,6 +346,8 @@ All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER*
   "yearsExperience": null,
   "contactInfo": null,
   "serviceArea": null,
+  "latitude": null,
+  "longitude": null,
   "website": null,
   "directorFirstName": null,
   "directorLastName": null,
@@ -376,6 +378,8 @@ All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER*
   "yearsExperience": 10,
   "contactInfo": "jane@platform.example",
   "serviceArea": "Greater London",
+  "latitude": 51.5074,
+  "longitude": -0.1278,
   "website": "https://janesplumbing.example.com",
   "directorFirstName": "John",
   "directorLastName": "Smith",
@@ -387,7 +391,7 @@ All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER*
   "operatingHours": { "monday": { "open": "09:00", "close": "17:00" } }
 }
 ```
-`profileImage`, `coverImage`, `website`, and each entry in `galleryImages` must be valid URLs. `socialLinks`, `portfolioLinks`, and `operatingHours` accept any JSON object shape. Response `200`: the updated `ProviderProfile` row.
+`profileImage`, `coverImage`, `website`, and each entry in `galleryImages` must be valid URLs. `socialLinks`, `portfolioLinks`, and `operatingHours` accept any JSON object shape. `latitude`/`longitude` (decimal degrees) are used for distance-based search (FR9) — set them here to make this provider findable by `GET /api/listings?latitude=...&longitude=...&radiusKm=...`. Response `200`: the updated `ProviderProfile` row.
 
 `firstName`/`lastName` are the provider's own personal name (relevant for `INDIVIDUAL` providers). `directorFirstName`/`directorLastName`/`directorContactInfo` are the business's director/representative name and contact (relevant for `BUSINESS` providers — this is the same "representative identity" the SRS mentions under provider KYC, FR4). None of these are required or restricted by `providerType` at the API level — any provider can set any of them.
 
@@ -612,11 +616,25 @@ No auth required. Only listings with `isActive: true` are returned.
 
 ### Search / browse listings
 
-**GET** `/api/listings` → `200` — array of listings, each including its `categories` array and a summary of the owning `providerProfile` (`id`, `displayName`, `providerType`, `verificationStatus`, `profileImage`), newest first.
+**GET** `/api/listings` → `200` — array of listings, each including its `categories` array and a summary of the owning `providerProfile` (`id`, `displayName`, `providerType`, `verificationStatus`, `profileImage`, `serviceArea`, `latitude`, `longitude`), newest first (or by distance — see below).
 
-Optional query params (all combinable): `categoryId` (matches listings that include this category — a listing can have several), `providerProfileId`, `search` (matches `title`/`description`, case-insensitive), `pricingType` (`"HOURLY"` or `"FIXED"`), `minPrice`, `maxPrice`.
+Optional query params, all combinable:
+| Param | Matches FR9 bullet | Notes |
+|---|---|---|
+| `search` | Keyword | Case-insensitive match on `title`/`description` |
+| `categoryId` | Category | A listing can have multiple categories — matches if it has this one |
+| `minPrice`, `maxPrice` | Budget | Inclusive range on `price` |
+| `pricingType` | — | `"HOURLY"` or `"FIXED"` |
+| `location` | Location | Case-insensitive substring match on the provider's `serviceArea` text |
+| `latitude`, `longitude`, `radiusKm` | Distance | All three required together (`400` otherwise). Filters to providers within `radiusKm` km (great-circle/Haversine distance) of the given point, adds a `distanceKm` field to each result, and **overrides the default sort to ascending distance**. Only providers who've set their own `latitude`/`longitude` (via `PATCH /api/providers/me`) are considered. |
+| `verified` | Verification | `true` → only providers with `verificationStatus: "VERIFIED"` |
+| `providerType` | Provider Type | `"INDIVIDUAL"` or `"BUSINESS"` |
+| `availableDate` | Availability | ISO date (`YYYY-MM-DD`). Only providers with a declared open slot covering that date (recurring weekly or date-specific) **and no full-day block** (`isBlocked: true` with `startTime: "00:00"`/`endTime: "23:59"`) are included. Partial blocks (e.g. a lunch break) don't exclude a provider — this is a discovery-level check; exact time-slot conflicts are resolved at booking time (FR11). |
+| `providerProfileId` | — | Listings from one specific provider |
 
-Example: `GET /api/listings?categoryId=<uuid>&search=leak&pricingType=HOURLY&minPrice=20&maxPrice=100`
+Example: `GET /api/listings?categoryId=<uuid>&search=leak&location=London&verified=true&availableDate=2026-08-10&minPrice=20&maxPrice=100`
+
+Example (distance): `GET /api/listings?latitude=51.5074&longitude=-0.1278&radiusKm=50`
 
 ### Get one listing
 
@@ -625,6 +643,45 @@ Example: `GET /api/listings?categoryId=<uuid>&search=leak&pricingType=HOURLY&min
 ### Get a listing's availability
 
 **GET** `/api/listings/:listingId/availability` → `200` — array of the owning provider's `AvailabilitySlot` rows (see FR8 below), so a customer can see when they could book before doing so. Errors: `404 { "error": "Listing not found" }` if the listing doesn't exist or is inactive.
+
+### AI intelligent search (FR10)
+
+**POST** `/api/listings/ai-search` — no auth required.
+```json
+{ "query": "I need an affordable plumber in London, budget under 100" }
+```
+Understands a free-text query and turns it into the same structured filters as the search above — `category`, `minPrice`/`maxPrice` (budget), `location`, `availableDate` (resolves relative phrases like "tomorrow" or "this weekend" against today's date), and `urgency` (`"low"`/`"medium"`/`"high"`, inferred from words like "emergency"/"asap" vs. "whenever" — not currently used to filter, since response-time data doesn't exist yet; see limitations below). Then runs the normal listing search with those extracted filters and returns both the interpretation and the results.
+
+Response `200`:
+```json
+{
+  "interpretation": {
+    "category": { "id": "category-uuid", "name": "Plumbing" },
+    "minPrice": null,
+    "maxPrice": 100,
+    "location": "London",
+    "availableDate": null,
+    "urgency": "medium",
+    "explanation": "The user is looking for an affordable plumber in London, with a budget under $100."
+  },
+  "results": [
+    {
+      "...": "same shape as GET /api/listings results",
+      "matchReasons": ["Matches requested service: Plumbing", "Within requested budget", "Serves London", "Verified provider"]
+    }
+  ]
+}
+```
+`matchReasons` is computed deterministically from the actual filter values (not a separate AI call per result) — this is the "explain recommendations" requirement, satisfied without extra latency/hallucination risk. If nothing in the category list clearly matches the query, `category` comes back `null` and the search runs unfiltered by category rather than guessing.
+
+**Current limitations** (documented honestly rather than silently no-op'd): ranking only orders by verification/recency/distance — semantic similarity, ratings, review count, response time, acceptance rate, and completed-jobs-based ranking are **not yet implemented**, since Reviews (FR16) and Bookings (FR11) don't exist yet to supply that data. Once those modules exist, this endpoint's ranking will incorporate them.
+
+Backed by [Groq](https://console.groq.com)'s free-tier API (`GROQ_API_KEY` in `.env`, same as FR7). Errors:
+| Status | Body | Cause |
+|---|---|---|
+| `400` | `{ "error": "Validation failed", ... }` | Missing `query` |
+| `500` | `{ "error": "AI search is not configured (missing GROQ_API_KEY)" }` | `GROQ_API_KEY` not set |
+| `502` | `{ "error": "AI search — the AI service is unavailable" }` / `"... returned invalid JSON"` / `"... returned an unexpected shape"` / `"... returned an unknown category id"` | Groq request failed, or its response didn't parse/validate (includes the same hallucination guard as FR7) |
 
 ---
 

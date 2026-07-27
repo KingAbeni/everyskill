@@ -1,13 +1,31 @@
 import { z } from "zod";
 
-export const listPublicListingsQuerySchema = z.object({
-  categoryId: z.string().uuid().optional(),
-  providerProfileId: z.string().uuid().optional(),
-  search: z.string().min(1).optional(),
-  pricingType: z.enum(["HOURLY", "FIXED"]).optional(),
-  minPrice: z.coerce.number().nonnegative().optional(),
-  maxPrice: z.coerce.number().nonnegative().optional(),
-});
+export const listPublicListingsQuerySchema = z
+  .object({
+    categoryId: z.string().uuid().optional(),
+    providerProfileId: z.string().uuid().optional(),
+    search: z.string().min(1).optional(),
+    pricingType: z.enum(["HOURLY", "FIXED"]).optional(),
+    minPrice: z.coerce.number().nonnegative().optional(),
+    maxPrice: z.coerce.number().nonnegative().optional(),
+    providerType: z.enum(["INDIVIDUAL", "BUSINESS"]).optional(),
+    verified: z.coerce.boolean().optional(),
+    location: z.string().min(1).optional(),
+    availableDate: z.coerce.date().optional(),
+    latitude: z.coerce.number().min(-90).max(90).optional(),
+    longitude: z.coerce.number().min(-180).max(180).optional(),
+    radiusKm: z.coerce.number().positive().optional(),
+  })
+  .refine(
+    (q) => {
+      const provided = [q.latitude !== undefined, q.longitude !== undefined, q.radiusKm !== undefined];
+      return provided.every((p) => p) || provided.every((p) => !p);
+    },
+    {
+      message: "latitude, longitude, and radiusKm must all be provided together for distance search",
+      path: ["radiusKm"],
+    },
+  );
 
 export const createListingSchema = z.object({
   categoryIds: z.array(z.string().uuid()).min(1),
@@ -25,6 +43,10 @@ export const createListingSchema = z.object({
 export const recommendCategorySchema = z.object({
   title: z.string().min(1),
   description: z.string().min(1),
+});
+
+export const aiSearchSchema = z.object({
+  query: z.string().min(1),
 });
 
 export const updateListingSchema = z.object({

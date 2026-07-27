@@ -1,19 +1,22 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 import { z } from "zod";
 import {
+  aiSearchSchema,
   createListingSchema,
   listPublicListingsQuerySchema,
   recommendCategorySchema,
   updateListingSchema,
 } from "./listing.schemas";
 import * as availabilityService from "../availability/availability.service";
-import { recommendCategoryWithGroq } from "../../config/groq";
+import { interpretSearchQueryWithGroq, recommendCategoryWithGroq } from "../../config/groq";
 
 type ListPublicQuery = z.infer<typeof listPublicListingsQuerySchema>;
 type CreateListingInput = z.infer<typeof createListingSchema>;
 type UpdateListingInput = z.infer<typeof updateListingSchema>;
 type RecommendCategoryInput = z.infer<typeof recommendCategorySchema>;
+type AiSearchInput = z.infer<typeof aiSearchSchema>;
 
 const providerSummarySelect = {
   id: true,
@@ -21,29 +24,87 @@ const providerSummarySelect = {
   providerType: true,
   verificationStatus: true,
   profileImage: true,
+  serviceArea: true,
+  latitude: true,
+  longitude: true,
 } as const;
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+}
+
 export async function listPublicListings(query: ListPublicQuery) {
-  return prisma.serviceListing.findMany({
-    where: {
-      isActive: true,
-      categories: query.categoryId ? { some: { id: query.categoryId } } : undefined,
-      providerProfileId: query.providerProfileId,
-      pricingType: query.pricingType,
-      price:
-        query.minPrice !== undefined || query.maxPrice !== undefined
-          ? { gte: query.minPrice, lte: query.maxPrice }
-          : undefined,
-      OR: query.search
-        ? [
-            { title: { contains: query.search, mode: "insensitive" } },
-            { description: { contains: query.search, mode: "insensitive" } },
-          ]
-        : undefined,
-    },
+  const conditions: Prisma.ServiceListingWhereInput[] = [{ isActive: true }];
+
+  if (query.categoryId) {
+    conditions.push({ categories: { some: { id: query.categoryId } } });
+  }
+  if (query.providerProfileId) {
+    conditions.push({ providerProfileId: query.providerProfileId });
+  }
+  if (query.pricingType) {
+    conditions.push({ pricingType: query.pricingType });
+  }
+  if (query.minPrice !== undefined || query.maxPrice !== undefined) {
+    conditions.push({ price: { gte: query.minPrice, lte: query.maxPrice } });
+  }
+  if (query.search) {
+    conditions.push({
+      OR: [
+        { title: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  const providerConditions: Prisma.ProviderProfileWhereInput = {};
+  if (query.verified) {
+    providerConditions.verificationStatus = "VERIFIED";
+  }
+  if (query.providerType) {
+    providerConditions.providerType = query.providerType;
+  }
+  if (query.location) {
+    providerConditions.serviceArea = { contains: query.location, mode: "insensitive" };
+  }
+  if (query.latitude !== undefined) {
+    providerConditions.latitude = { not: null };
+    providerConditions.longitude = { not: null };
+  }
+  if (Object.keys(providerConditions).length > 0) {
+    conditions.push({ providerProfile: providerConditions });
+  }
+
+  if (query.availableDate) {
+    const availableProviderIds = await availabilityService.listAvailableProviderIds(query.availableDate);
+    conditions.push({ providerProfileId: { in: availableProviderIds } });
+  }
+
+  const listings = await prisma.serviceListing.findMany({
+    where: { AND: conditions },
     include: { categories: true, providerProfile: { select: providerSummarySelect } },
     orderBy: { createdAt: "desc" },
   });
+
+  if (query.latitude !== undefined && query.longitude !== undefined && query.radiusKm !== undefined) {
+    const { latitude, longitude, radiusKm } = query;
+    return listings
+      .map((listing) => ({
+        ...listing,
+        distanceKm: haversineKm(latitude, longitude, listing.providerProfile.latitude!, listing.providerProfile.longitude!),
+      }))
+      .filter((listing) => listing.distanceKm <= radiusKm)
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+  }
+
+  return listings;
 }
 
 export async function getPublicListing(listingId: string) {
@@ -151,5 +212,56 @@ export async function recommendCategory(input: RecommendCategoryInput) {
     category,
     confidence: recommendation.confidence,
     reasoning: recommendation.reasoning,
+  };
+}
+
+export async function aiSearch(input: AiSearchInput) {
+  const categories = await prisma.category.findMany({ select: { id: true, name: true } });
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  const interpretation = await interpretSearchQueryWithGroq(categories, input.query, todayIso);
+  const category = interpretation.categoryId ? categories.find((c) => c.id === interpretation.categoryId) : undefined;
+
+  const searchQuery: ListPublicQuery = {
+    categoryId: interpretation.categoryId ?? undefined,
+    minPrice: interpretation.minPrice ?? undefined,
+    maxPrice: interpretation.maxPrice ?? undefined,
+    location: interpretation.location ?? undefined,
+    availableDate: interpretation.availableDate ? new Date(interpretation.availableDate) : undefined,
+  };
+
+  const results = await listPublicListings(searchQuery);
+
+  const resultsWithReasons = results.map((listing) => {
+    const reasons: string[] = [];
+    if (category && listing.categories.some((c) => c.id === category.id)) {
+      reasons.push(`Matches requested service: ${category.name}`);
+    }
+    if (interpretation.minPrice !== null || interpretation.maxPrice !== null) {
+      reasons.push("Within requested budget");
+    }
+    if (interpretation.location) {
+      reasons.push(`Serves ${interpretation.location}`);
+    }
+    if (interpretation.availableDate) {
+      reasons.push(`Available on ${interpretation.availableDate}`);
+    }
+    if (listing.providerProfile.verificationStatus === "VERIFIED") {
+      reasons.push("Verified provider");
+    }
+    return { ...listing, matchReasons: reasons };
+  });
+
+  return {
+    interpretation: {
+      category: category ? { id: category.id, name: category.name } : null,
+      minPrice: interpretation.minPrice,
+      maxPrice: interpretation.maxPrice,
+      location: interpretation.location,
+      availableDate: interpretation.availableDate,
+      urgency: interpretation.urgency,
+      explanation: interpretation.explanation,
+    },
+    results: resultsWithReasons,
   };
 }
