@@ -3,6 +3,9 @@ import * as customerService from "./customer.service";
 import * as bookingService from "../booking/booking.service";
 import * as paymentService from "../payment/payment.service";
 import * as extraChargeService from "../extraCharge/extraCharge.service";
+import * as rescheduleService from "../reschedule/reschedule.service";
+import * as disputeService from "../dispute/dispute.service";
+import * as messageService from "../message/message.service";
 import {
   addFavoriteSchema,
   createAddressSchema,
@@ -13,6 +16,9 @@ import {
 import { cancelBookingSchema, createBookingSchema } from "../booking/booking.schemas";
 import { payBookingSchema } from "../payment/payment.schemas";
 import { payExtraChargeSchema, respondExtraChargeSchema } from "../extraCharge/extraCharge.schemas";
+import { proposeRescheduleSchema, respondRescheduleSchema } from "../reschedule/reschedule.schemas";
+import { openDisputeSchema } from "../dispute/dispute.schemas";
+import { sendMessageSchema } from "../message/message.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await customerService.getMyProfile(req.user!.sub);
@@ -83,6 +89,45 @@ export async function cancelBookingHandler(req: Request, res: Response) {
   const input = cancelBookingSchema.parse(req.body);
   const booking = await bookingService.cancelBookingAsCustomer(req.user!.sub, req.params.bookingId, input);
   res.status(200).json(booking);
+}
+
+export async function markProviderNoShowHandler(req: Request, res: Response) {
+  const booking = await bookingService.markProviderNoShow(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function proposeRescheduleHandler(req: Request, res: Response) {
+  const input = proposeRescheduleSchema.parse(req.body);
+  const request = await rescheduleService.proposeRescheduleAsCustomer(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(request);
+}
+
+export async function respondRescheduleHandler(req: Request, res: Response) {
+  const input = respondRescheduleSchema.parse(req.body);
+  const request = await rescheduleService.respondToRescheduleAsCustomer(
+    req.user!.sub,
+    req.params.bookingId,
+    req.params.requestId,
+    input,
+  );
+  res.status(200).json(request);
+}
+
+export async function openDisputeHandler(req: Request, res: Response) {
+  const input = openDisputeSchema.parse(req.body);
+  const dispute = await disputeService.openDisputeAsCustomer(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(dispute);
+}
+
+export async function listMessagesHandler(req: Request, res: Response) {
+  const messages = await messageService.listMessagesAsCustomer(req.user!.sub, req.params.bookingId);
+  res.status(200).json(messages);
+}
+
+export async function sendMessageHandler(req: Request, res: Response) {
+  const input = sendMessageSchema.parse(req.body);
+  const message = await messageService.sendMessageAsCustomer(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(message);
 }
 
 export async function listPaymentsHandler(req: Request, res: Response) {

@@ -164,6 +164,37 @@ export async function refundPayment(bookingId: string) {
   await prisma.payment.update({ where: { bookingId }, data: { status: "REFUNDED" } });
 }
 
+/**
+ * Refund in the customer's favor for a dispute resolution (FR13), regardless of current payment
+ * status — unlike the plain `refundPayment` above (which only acts on ESCROW, for a normal
+ * cancellation). If still ESCROW, this is the same pre-capture cancel. If already RELEASED
+ * (captured), issues a real Stripe refund and claws back the provider's credited balance — which
+ * can go negative if they've already withdrawn it (see docs/API.md for this known limitation; no
+ * separate "provider owes platform" billing flow is built for this case). No-op if unpaid, or if
+ * paid offline (no real charge exists to refund — the parties must settle up between themselves).
+ */
+export async function refundPaymentForDispute(bookingId: string) {
+  const payment = await prisma.payment.findUnique({ where: { bookingId } });
+  if (!payment) {
+    return;
+  }
+
+  if (payment.status === "ESCROW") {
+    await refundPayment(bookingId);
+    return;
+  }
+
+  if (payment.status === "RELEASED" && payment.gateway === "stripe") {
+    const stripe = getStripeClient();
+    await stripe.refunds.create({ payment_intent: payment.transactionRef! });
+    await prisma.payment.update({ where: { bookingId }, data: { status: "REFUNDED" } });
+
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    const { net } = await calculateCommission(Number(payment.amount));
+    await creditProviderBalance(booking.providerProfileId, -net);
+  }
+}
+
 export async function listProviderPayments(userId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   return prisma.payment.findMany({

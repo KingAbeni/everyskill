@@ -37,6 +37,15 @@ providerRouter.patch("/me/bookings/:bookingId/decline", asyncHandler(providerCon
 providerRouter.patch("/me/bookings/:bookingId/start", asyncHandler(providerController.startBookingHandler));
 providerRouter.patch("/me/bookings/:bookingId/complete", asyncHandler(providerController.completeBookingHandler));
 providerRouter.patch("/me/bookings/:bookingId/cancel", asyncHandler(providerController.cancelMyBookingHandler));
+providerRouter.patch("/me/bookings/:bookingId/no-show", asyncHandler(providerController.markCustomerNoShowHandler));
+providerRouter.post("/me/bookings/:bookingId/reschedule", asyncHandler(providerController.proposeRescheduleHandler));
+providerRouter.patch(
+  "/me/bookings/:bookingId/reschedule/:requestId/respond",
+  asyncHandler(providerController.respondRescheduleHandler),
+);
+providerRouter.post("/me/bookings/:bookingId/dispute", asyncHandler(providerController.openDisputeHandler));
+providerRouter.get("/me/bookings/:bookingId/messages", asyncHandler(providerController.listMessagesHandler));
+providerRouter.post("/me/bookings/:bookingId/messages", asyncHandler(providerController.sendMessageHandler));
 providerRouter.post("/me/bookings/:bookingId/extra-charges", asyncHandler(providerController.requestExtraChargeHandler));
 
 providerRouter.get("/me/payments", asyncHandler(providerController.listMyPaymentsHandler));

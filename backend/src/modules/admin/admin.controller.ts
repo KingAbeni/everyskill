@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import * as adminService from "./admin.service";
 import * as platformService from "../platform/platform.service";
+import * as disputeService from "../dispute/dispute.service";
 import {
   createAdminSchema,
   forceResetAdminPasswordSchema,
@@ -8,6 +9,7 @@ import {
   reviewKycSchema,
   updatePlatformSettingsSchema,
 } from "./admin.schemas";
+import { listDisputesQuerySchema, resolveDisputeSchema } from "../dispute/dispute.schemas";
 
 export async function listKycRequestsHandler(req: Request, res: Response) {
   const query = listKycQuerySchema.parse(req.query);
@@ -52,4 +54,31 @@ export async function updatePlatformSettingsHandler(req: Request, res: Response)
   const input = updatePlatformSettingsSchema.parse(req.body);
   const settings = await platformService.updateCommissionPercent(req.user!.sub, input.commissionPercent);
   res.status(200).json(settings);
+}
+
+export async function reactivateUserHandler(req: Request, res: Response) {
+  const user = await adminService.reactivateUser(req.user!.sub, req.params.userId);
+  res.status(200).json(user);
+}
+
+export async function listDisputesHandler(req: Request, res: Response) {
+  const query = listDisputesQuerySchema.parse(req.query);
+  const disputes = await disputeService.listDisputes(query);
+  res.status(200).json(disputes);
+}
+
+export async function getDisputeHandler(req: Request, res: Response) {
+  const dispute = await disputeService.getDispute(req.params.disputeId);
+  res.status(200).json(dispute);
+}
+
+export async function markDisputeUnderReviewHandler(req: Request, res: Response) {
+  const dispute = await disputeService.markUnderReview(req.params.disputeId);
+  res.status(200).json(dispute);
+}
+
+export async function resolveDisputeHandler(req: Request, res: Response) {
+  const input = resolveDisputeSchema.parse(req.body);
+  const dispute = await disputeService.resolveDispute(req.user!.sub, req.params.disputeId, input);
+  res.status(200).json(dispute);
 }

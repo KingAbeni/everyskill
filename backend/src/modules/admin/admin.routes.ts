@@ -27,3 +27,12 @@ adminRouter.patch(
   requireRole("SUPER_ADMIN"),
   asyncHandler(adminController.updatePlatformSettingsHandler),
 );
+
+// Manual reactivation for a SUSPENDED account (FR13 violations have no auto-reinstatement).
+adminRouter.patch("/users/:userId/reactivate", asyncHandler(adminController.reactivateUserHandler));
+
+// Dispute resolution (FR13).
+adminRouter.get("/disputes", asyncHandler(adminController.listDisputesHandler));
+adminRouter.get("/disputes/:disputeId", asyncHandler(adminController.getDisputeHandler));
+adminRouter.patch("/disputes/:disputeId/review", asyncHandler(adminController.markDisputeUnderReviewHandler));
+adminRouter.patch("/disputes/:disputeId/resolve", asyncHandler(adminController.resolveDisputeHandler));

@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { BookingStatus } from "@prisma/client";
+import { BookingStatus, NoShowParty } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { AppError } from "../../utils/AppError";
 import { z } from "zod";
@@ -16,21 +16,26 @@ const bookingInclude = {
   customer: true,
   payment: true,
   extraCharges: true,
+  rescheduleRequests: true,
 } as const;
 
 // Statuses that still "occupy" a provider's time slot — used for double-booking conflict checks.
 const ACTIVE_STATUSES: BookingStatus[] = ["REQUESTED", "ACCEPTED", "IN_PROGRESS", "DISPUTED"];
 
-// Valid status transitions (FR11). DISPUTED is entered only via the Dispute flow (FR13), not
-// through a direct transition here.
+// A party's total logged violations (late cancellations + no-shows) at or above this triggers
+// an automatic suspension (FR13) — an admin must manually reactivate (see admin.service.ts).
+const VIOLATION_SUSPENSION_THRESHOLD = 3;
+
+// Valid status transitions (FR11/FR13). DISPUTED is entered only via the Dispute flow, and only
+// leaves it via dispute resolution (see dispute.service.ts) — never a direct action here.
 const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   REQUESTED: ["ACCEPTED", "DECLINED", "CANCELLED"],
-  ACCEPTED: ["IN_PROGRESS", "CANCELLED"],
-  IN_PROGRESS: ["COMPLETED", "CANCELLED"],
-  COMPLETED: [],
+  ACCEPTED: ["IN_PROGRESS", "CANCELLED", "DISPUTED"],
+  IN_PROGRESS: ["COMPLETED", "CANCELLED", "DISPUTED"],
+  COMPLETED: ["DISPUTED"],
   CANCELLED: [],
   DECLINED: [],
-  DISPUTED: [],
+  DISPUTED: ["COMPLETED", "CANCELLED"],
 };
 
 async function getCustomerProfileOrThrow(userId: string) {
@@ -113,6 +118,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
     prisma.bookingStatusHistory.create({
       data: { bookingId, fromStatus: null, toStatus: "REQUESTED", changedById: userId },
     }),
+    prisma.conversation.create({ data: { bookingId } }),
   ]);
 
   return booking;
@@ -168,7 +174,7 @@ async function transition(
   fromStatus: BookingStatus,
   actorUserId: string,
   toStatus: BookingStatus,
-  extra?: { cancellationReason?: string },
+  extra?: { cancellationReason?: string; noShowBy?: NoShowParty },
 ) {
   const allowed = TRANSITIONS[fromStatus];
   if (!allowed.includes(toStatus)) {
@@ -181,7 +187,11 @@ async function transition(
       data: {
         status: toStatus,
         ...(toStatus === "CANCELLED"
-          ? { cancelledAt: new Date(), cancellationReason: extra?.cancellationReason ?? null }
+          ? {
+              cancelledAt: new Date(),
+              cancellationReason: extra?.cancellationReason ?? null,
+              noShowBy: extra?.noShowBy ?? null,
+            }
           : {}),
       },
     }),
@@ -198,6 +208,39 @@ async function transition(
   }
 
   return prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: bookingInclude });
+}
+
+/**
+ * FR13 — increments a party's violation counter (late cancellation or no-show) and, once their
+ * total reaches VIOLATION_SUSPENSION_THRESHOLD, auto-suspends their account. There is no
+ * automatic reinstatement path here (unlike the FR12 offline-billing suspension) — an
+ * ADMIN/SUPER_ADMIN must manually reactivate via PATCH /api/admin/users/:userId/reactivate.
+ */
+async function recordViolation(role: "CUSTOMER" | "PROVIDER", profileId: string, type: "lateCancellation" | "noShow") {
+  const field = type === "lateCancellation" ? "lateCancellationCount" : "noShowCount";
+
+  if (role === "CUSTOMER") {
+    const updated = await prisma.customerProfile.update({
+      where: { id: profileId },
+      data: { [field]: { increment: 1 } },
+    });
+    if (updated.lateCancellationCount + updated.noShowCount >= VIOLATION_SUSPENSION_THRESHOLD) {
+      await prisma.user.update({ where: { id: updated.userId }, data: { status: "SUSPENDED" } });
+    }
+  } else {
+    const updated = await prisma.providerProfile.update({
+      where: { id: profileId },
+      data: { [field]: { increment: 1 } },
+    });
+    if (updated.lateCancellationCount + updated.noShowCount >= VIOLATION_SUSPENSION_THRESHOLD) {
+      await prisma.user.update({ where: { id: updated.userId }, data: { status: "SUSPENDED" } });
+    }
+  }
+}
+
+function isLateCancellation(booking: { scheduledAt: Date; listing: { cancellationCutoffHours: number } }): boolean {
+  const hoursUntil = (booking.scheduledAt.getTime() - Date.now()) / (1000 * 60 * 60);
+  return hoursUntil < booking.listing.cancellationCutoffHours;
 }
 
 export async function acceptBooking(userId: string, bookingId: string) {
@@ -227,11 +270,75 @@ export async function completeBooking(userId: string, bookingId: string) {
 export async function cancelBookingAsProvider(userId: string, bookingId: string, input: CancelBookingInput) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
-  return transition(bookingId, booking.status, userId, "CANCELLED", { cancellationReason: input.cancellationReason });
+  const wasCommitted = booking.status === "ACCEPTED" || booking.status === "IN_PROGRESS";
+  const updated = await transition(bookingId, booking.status, userId, "CANCELLED", {
+    cancellationReason: input.cancellationReason,
+  });
+  if (wasCommitted && isLateCancellation(booking)) {
+    await recordViolation("PROVIDER", profile.id, "lateCancellation");
+  }
+  return updated;
 }
 
 export async function cancelBookingAsCustomer(userId: string, bookingId: string, input: CancelBookingInput) {
   const profile = await getCustomerProfileOrThrow(userId);
   const booking = await getOwnedCustomerBookingOrThrow(profile.id, bookingId);
-  return transition(bookingId, booking.status, userId, "CANCELLED", { cancellationReason: input.cancellationReason });
+  const wasCommitted = booking.status === "ACCEPTED" || booking.status === "IN_PROGRESS";
+  const updated = await transition(bookingId, booking.status, userId, "CANCELLED", {
+    cancellationReason: input.cancellationReason,
+  });
+  if (wasCommitted && isLateCancellation(booking)) {
+    await recordViolation("CUSTOMER", profile.id, "lateCancellation");
+  }
+  return updated;
+}
+
+export async function markCustomerNoShow(userId: string, bookingId: string) {
+  const profile = await getProviderProfileOrThrow(userId);
+  const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
+  if (booking.status !== "ACCEPTED" && booking.status !== "IN_PROGRESS") {
+    throw new AppError(409, `Cannot mark a no-show for a booking in status ${booking.status}`);
+  }
+  if (booking.scheduledAt.getTime() > Date.now()) {
+    throw new AppError(400, "Cannot mark a no-show before the scheduled time has passed");
+  }
+  const updated = await transition(bookingId, booking.status, userId, "CANCELLED", {
+    cancellationReason: "Customer no-show",
+    noShowBy: "CUSTOMER",
+  });
+  await recordViolation("CUSTOMER", booking.customerId, "noShow");
+  return updated;
+}
+
+export async function markProviderNoShow(userId: string, bookingId: string) {
+  const profile = await getCustomerProfileOrThrow(userId);
+  const booking = await getOwnedCustomerBookingOrThrow(profile.id, bookingId);
+  if (booking.status !== "ACCEPTED" && booking.status !== "IN_PROGRESS") {
+    throw new AppError(409, `Cannot mark a no-show for a booking in status ${booking.status}`);
+  }
+  if (booking.scheduledAt.getTime() > Date.now()) {
+    throw new AppError(400, "Cannot mark a no-show before the scheduled time has passed");
+  }
+  const updated = await transition(bookingId, booking.status, userId, "CANCELLED", {
+    cancellationReason: "Provider no-show",
+    noShowBy: "PROVIDER",
+  });
+  await recordViolation("PROVIDER", booking.providerProfileId, "noShow");
+  return updated;
+}
+
+/** Used by dispute.service.ts to open a dispute (FR13) — ACCEPTED/IN_PROGRESS/COMPLETED -> DISPUTED. */
+export async function transitionToDisputed(bookingId: string, actorUserId: string) {
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+  return transition(bookingId, booking.status, actorUserId, "DISPUTED");
+}
+
+/** Used by dispute.service.ts to resolve a dispute (FR13) — DISPUTED -> COMPLETED or CANCELLED. */
+export async function resolveDisputeTransition(
+  bookingId: string,
+  actorUserId: string,
+  toStatus: "COMPLETED" | "CANCELLED",
+) {
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+  return transition(bookingId, booking.status, actorUserId, toStatus);
 }

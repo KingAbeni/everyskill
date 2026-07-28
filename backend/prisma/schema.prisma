@@ -101,6 +101,12 @@ enum BillStatus {
   OVERDUE
 }
 
+enum RescheduleStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
 // ---------- Core identity ----------
 
 model User {
@@ -148,6 +154,8 @@ model CustomerProfile {
   phone               String?
   avatarUrl           String?
   privacyPreferences  Json?
+  lateCancellationCount Int     @default(0)
+  noShowCount           Int     @default(0)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -213,6 +221,8 @@ model ProviderProfile {
   galleryImages        String[]
   operatingHours      Json?
   verificationStatus  VerificationStatus  @default(PENDING)
+  lateCancellationCount Int               @default(0)
+  noShowCount           Int               @default(0)
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 
@@ -325,6 +335,7 @@ model Booking {
   documentation     ServiceDocumentation[]
   extraCharges      ExtraCharge[]
   offlineBills      OfflinePaymentBill[]
+  rescheduleRequests RescheduleRequest[]
 }
 
 model BookingStatusHistory {
@@ -347,6 +358,19 @@ model Payment {
   transactionRef String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+// ---------- Reschedule requests (alternative to a late cancellation) ----------
+
+model RescheduleRequest {
+  id            String           @id @default(uuid())
+  bookingId     String
+  booking       Booking          @relation(fields: [bookingId], references: [id])
+  proposedAt    DateTime
+  requestedById String
+  status        RescheduleStatus @default(PENDING)
+  respondedAt   DateTime?
+  createdAt     DateTime         @default(now())
 }
 
 // ---------- Extra charges (mid-job price increases) ----------

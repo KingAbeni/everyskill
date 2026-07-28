@@ -5,12 +5,18 @@ import * as availabilityService from "../availability/availability.service";
 import * as bookingService from "../booking/booking.service";
 import * as paymentService from "../payment/payment.service";
 import * as extraChargeService from "../extraCharge/extraCharge.service";
+import * as rescheduleService from "../reschedule/reschedule.service";
+import * as disputeService from "../dispute/dispute.service";
+import * as messageService from "../message/message.service";
 import { createCertificationSchema, submitKycDocumentSchema, updateProviderProfileSchema } from "./provider.schemas";
 import { createListingSchema, recommendCategorySchema, updateListingSchema } from "../listing/listing.schemas";
 import { createSlotSchema, updateSlotSchema } from "../availability/availability.schemas";
 import { cancelBookingSchema } from "../booking/booking.schemas";
 import { payBillSchema, withdrawSchema } from "../payment/payment.schemas";
 import { createExtraChargeSchema } from "../extraCharge/extraCharge.schemas";
+import { proposeRescheduleSchema, respondRescheduleSchema } from "../reschedule/reschedule.schemas";
+import { openDisputeSchema } from "../dispute/dispute.schemas";
+import { sendMessageSchema } from "../message/message.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await providerService.getMyProfile(req.user!.sub);
@@ -144,6 +150,45 @@ export async function cancelMyBookingHandler(req: Request, res: Response) {
   const input = cancelBookingSchema.parse(req.body);
   const booking = await bookingService.cancelBookingAsProvider(req.user!.sub, req.params.bookingId, input);
   res.status(200).json(booking);
+}
+
+export async function markCustomerNoShowHandler(req: Request, res: Response) {
+  const booking = await bookingService.markCustomerNoShow(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function proposeRescheduleHandler(req: Request, res: Response) {
+  const input = proposeRescheduleSchema.parse(req.body);
+  const request = await rescheduleService.proposeRescheduleAsProvider(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(request);
+}
+
+export async function respondRescheduleHandler(req: Request, res: Response) {
+  const input = respondRescheduleSchema.parse(req.body);
+  const request = await rescheduleService.respondToRescheduleAsProvider(
+    req.user!.sub,
+    req.params.bookingId,
+    req.params.requestId,
+    input,
+  );
+  res.status(200).json(request);
+}
+
+export async function openDisputeHandler(req: Request, res: Response) {
+  const input = openDisputeSchema.parse(req.body);
+  const dispute = await disputeService.openDisputeAsProvider(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(dispute);
+}
+
+export async function listMessagesHandler(req: Request, res: Response) {
+  const messages = await messageService.listMessagesAsProvider(req.user!.sub, req.params.bookingId);
+  res.status(200).json(messages);
+}
+
+export async function sendMessageHandler(req: Request, res: Response) {
+  const input = sendMessageSchema.parse(req.body);
+  const message = await messageService.sendMessageAsProvider(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(message);
 }
 
 export async function listMyPaymentsHandler(req: Request, res: Response) {

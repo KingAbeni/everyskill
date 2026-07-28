@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -234,9 +234,12 @@ All routes below require `Authorization: Bearer <accessToken>` for a **CUSTOMER*
   "lastName": "Intern",
   "phone": null,
   "avatarUrl": null,
-  "privacyPreferences": null
+  "privacyPreferences": null,
+  "lateCancellationCount": 0,
+  "noShowCount": 0
 }
 ```
+`lateCancellationCount`/`noShowCount` are your FR13 "standing" — see **Cancellation & Dispute Resolution (FR13)** further down.
 
 **PATCH** `/api/customers/me` — any subset of:
 ```json
@@ -356,12 +359,14 @@ All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER*
   "galleryImages": [],
   "operatingHours": null,
   "verificationStatus": "PENDING",
+  "lateCancellationCount": 0,
+  "noShowCount": 0,
   "createdAt": "...",
   "updatedAt": "...",
   "email": "provider@example.com"
 }
 ```
-`verificationStatus` is read-only here — it's set by admins via KYC review (FR4), not by the provider.
+`verificationStatus` is read-only here — it's set by admins via KYC review (FR4), not by the provider. `lateCancellationCount`/`noShowCount` are your FR13 "standing" — see **Cancellation & Dispute Resolution (FR13)** further down.
 
 **PATCH** `/api/providers/me` — any subset of:
 ```json
@@ -729,21 +734,23 @@ Response `201`. Errors:
 
 ## Booking Management (FR11)
 
-Booking workflow states: `REQUESTED → ACCEPTED → IN_PROGRESS → COMPLETED`, with `CANCELLED`/`DECLINED` as exits and `DISPUTED` reserved for the future Dispute flow (FR13). Every transition is validated server-side and recorded in `BookingStatusHistory` (returned as `statusHistory` on the single-booking `GET` endpoints below).
+Booking workflow states: `REQUESTED → ACCEPTED → IN_PROGRESS → COMPLETED`, with `CANCELLED`/`DECLINED` as exits and `DISPUTED` reachable from `ACCEPTED`/`IN_PROGRESS`/`COMPLETED` (see **Cancellation & Dispute Resolution (FR13)** below). Every transition is validated server-side and recorded in `BookingStatusHistory` (returned as `statusHistory` on the single-booking `GET` endpoints below).
 
 Allowed transitions (anything else → `409 { "error": "Cannot transition booking from X to Y" }`):
 ```
 REQUESTED   → ACCEPTED | DECLINED | CANCELLED
-ACCEPTED    → IN_PROGRESS | CANCELLED
-IN_PROGRESS → COMPLETED | CANCELLED
-COMPLETED / CANCELLED / DECLINED / DISPUTED → (terminal — no further transitions)
+ACCEPTED    → IN_PROGRESS | CANCELLED | DISPUTED
+IN_PROGRESS → COMPLETED | CANCELLED | DISPUTED
+COMPLETED   → DISPUTED
+DISPUTED    → COMPLETED | CANCELLED (via dispute resolution only, FR13 — never a direct action)
+CANCELLED / DECLINED → (terminal — no further transitions)
 ```
 
 **Double-booking prevention**: creating a booking checks the exact requested time + the listing's `durationMinutes` against (a) the provider's declared `AvailabilitySlot`s (FR8) — must be fully covered by an open window and not intersected by a blocked one — and (b) every other booking for that provider that isn't `CANCELLED`/`DECLINED`, for a real time-range overlap. Bookings that would cross midnight aren't supported by the current slot model and are rejected.
 
 **Payment sync (FR12)**: marking a booking `COMPLETED` automatically releases its escrowed payment (if any); marking it `CANCELLED` automatically refunds it (if any) — see **Escrow Payment System (FR12)** below. A booking with no payment (never paid, or paid then already resolved) is unaffected — this is a no-op, not an error.
 
-**Not yet implemented** (documented honestly): no-show/late-cancellation accounting against the cutoff hour defined on the listing (`cancellationCutoffHours`) — that's Cancellation & Dispute Resolution, FR13.
+**Cancellation consequences, no-shows, disputes, and rescheduling** are all covered in **Cancellation & Dispute Resolution (FR13)** below.
 
 ### Customer — create and manage my bookings `/api/customers/me/bookings`
 
@@ -963,6 +970,98 @@ A `node-cron` job (`backend/src/jobs/offlineBillingCron.ts`) runs **once daily a
 - **Suspended accounts cannot log in** (`POST /api/auth/login` → `403 { "error": "Your account has been suspended. Please contact support." }`).
 - Their **refresh token is deliberately left valid**, though — if the login block also revoked it, a provider with no other active session would have *no way back into the API at all*, not even to pay off the bill and get reinstated. So: a still-valid refresh token (from before suspension) can still be used at `POST /api/auth/refresh` to mint new access tokens, which can then hit `GET/POST /providers/me/bills` to settle up. Once *all* overdue bills are paid, the account flips back to `ACTIVE` automatically and login works again.
 - **Known limitation**: if a provider's refresh token had already expired (7 days) or been logged out *before* they got suspended, there is currently no API path back in — that would need a manual admin/support intervention, which isn't built.
+
+---
+
+## Cancellation & Dispute Resolution (FR13)
+
+Covers the SRS's FR13 bullets (request cancellation — already built in FR11; open disputes; admin resolution; dispute history; cancellations-after-cutoff and no-shows logged against the responsible party) plus two extensions added per direct request: a **reschedule** alternative to a late cancellation, and a violation-count **"standing"** with automatic suspension.
+
+### Reschedule — an alternative to cancelling late
+
+Either party can propose moving a booking to a new time instead of cancelling it (and instead of it counting as a violation, since a successful reschedule never touches the booking's status).
+
+**POST** `/api/customers/me/bookings/:bookingId/reschedule` or **POST** `/api/providers/me/bookings/:bookingId/reschedule` — booking must be `ACCEPTED`/`IN_PROGRESS` and owned by the caller.
+```json
+{ "proposedAt": "2026-08-11T13:00:00.000Z" }
+```
+Validates the proposed time exactly like creating a booking: must be in the future, within the provider's declared availability (FR8), and not conflicting with another booking. Only one `PENDING` reschedule request is allowed per booking at a time. Response `201`: the created `RescheduleRequest` (`{ id, bookingId, proposedAt, requestedById, status: "PENDING", respondedAt, createdAt }`).
+
+**PATCH** `/api/customers/me/bookings/:bookingId/reschedule/:requestId/respond` or the equivalent `/api/providers/...` path — must be the *other* party (not whoever proposed it).
+```json
+{ "approve": true }
+```
+`approve: true` re-validates availability/conflict at response time (in case something changed since the proposal) and, if still clear, updates `Booking.scheduledAt` to the proposed time — `RescheduleRequest.status` → `"ACCEPTED"`. `approve: false` → `"REJECTED"`, booking untouched (the original party can then propose again, or proceed with a normal cancellation). Response `200`.
+
+Errors: `404` if the booking/request doesn't exist or isn't yours; `409` if you try to respond to your own proposal, if the request isn't `PENDING` anymore, or (on `approve: true`) if the proposed time is no longer available/now conflicts; `400` if `proposedAt` isn't in the future.
+
+### No-shows
+
+A dedicated action for "the other party never showed up" — distinct from a normal mutual cancellation.
+
+**PATCH** `/api/providers/me/bookings/:bookingId/no-show` — provider marks the **customer** as a no-show.
+**PATCH** `/api/customers/me/bookings/:bookingId/no-show` — customer marks the **provider** as a no-show.
+
+No body for either. Booking must be `ACCEPTED`/`IN_PROGRESS` and its `scheduledAt` must already be in the past (`400` otherwise — you can't no-show an appointment that hasn't happened yet). On success: booking → `CANCELLED` (same payment-refund sync as any cancellation — FR12), `Booking.noShowBy` set to `"CUSTOMER"` or `"PROVIDER"`, and a violation is logged against the named party (see Standing below). Response `200`.
+
+### Late cancellations & "standing"
+
+Cancelling an `ACCEPTED`/`IN_PROGRESS` booking (via the ordinary `PATCH .../bookings/:bookingId/cancel` from FR11) is checked against the listing's `cancellationCutoffHours`: if the time remaining until `scheduledAt` is less than the cutoff, a violation is logged against **whoever initiated the cancellation**. Cancelling a booking that's still just `REQUESTED` (never accepted) never counts, since the provider hadn't committed yet.
+
+Each `CustomerProfile`/`ProviderProfile` tracks `lateCancellationCount` and `noShowCount` (visible on `GET /api/customers/me` and `GET /api/providers/me`) — this is the SRS's "standing." Once a party's **combined total reaches 3**, their account is automatically set to `SUSPENDED` (same login-blocking behavior as FR12's offline-billing suspension). **Unlike** FR12's suspension, there is no automatic reinstatement — an `ADMIN`/`SUPER_ADMIN` must manually reactivate:
+
+**PATCH** `/api/admin/users/:userId/reactivate` — `ADMIN`/`SUPER_ADMIN`, no body. Errors: `404` if the user doesn't exist; `409 { "error": "Cannot reactivate a user with status X" }` if they're not currently `SUSPENDED`. Response `200`: `{ id, email, role, status }`. (This endpoint is a general-purpose override — `User.status` doesn't track *why* an account was suspended, so it also works as a manual escape hatch for any other suspension reason.)
+
+### Disputes
+
+**POST** `/api/customers/me/bookings/:bookingId/dispute` or **POST** `/api/providers/me/bookings/:bookingId/dispute` — booking must be `ACCEPTED`/`IN_PROGRESS`/`COMPLETED` and owned by the caller; one dispute per booking.
+```json
+{ "reason": "Work was not completed to the agreed standard" }
+```
+Response `201`: the created `Dispute` (`status: "OPEN"`), and the booking transitions to `DISPUTED` (freezing it out of the normal accept/decline/start/complete/cancel actions until resolved). Errors: `404` if the booking isn't found/yours; `409` if the booking isn't in a disputable status, or a dispute already exists for it.
+
+**GET** `/api/admin/disputes` — `ADMIN`/`SUPER_ADMIN`, optional `?status=OPEN|UNDER_REVIEW|RESOLVED|REJECTED` filter → array of disputes, each including the full `booking` (with `customer`, `providerProfile`, `listing`, `payment`).
+
+**GET** `/api/admin/disputes/:disputeId` → same shape, single dispute. Errors: `404` if not found.
+
+**PATCH** `/api/admin/disputes/:disputeId/review` — no body. `OPEN` → `UNDER_REVIEW` (a lightweight bookkeeping step before a final decision). Errors: `409` if not currently `OPEN`.
+
+**PATCH** `/api/admin/disputes/:disputeId/resolve`:
+```json
+{ "decision": "REFUND_CUSTOMER", "resolution": "Provider confirmed to have not shown up; refunding customer." }
+```
+`decision` is one of:
+| Decision | Dispute status | Booking status | Payment effect |
+|---|---|---|---|
+| `"RELEASE_PROVIDER"` | `RESOLVED` | `COMPLETED` | If still `ESCROW`, captured (same as a normal completion) and the provider's balance is credited net-of-commission. If already `RELEASED`, no-op. |
+| `"REFUND_CUSTOMER"` | `RESOLVED` | `CANCELLED` | If still `ESCROW`, cancelled (pre-capture, same as a normal cancellation). If already `RELEASED` (captured), a **real Stripe refund** is issued and the provider's credited balance is **clawed back** by the same net amount — this can drive the balance negative if they've already withdrawn it (see limitation below). |
+| `"DISMISS"` | `REJECTED` | `COMPLETED` | No payment action — the dispute is thrown out, booking returns to normal. |
+
+Response `200`: the updated `Dispute`. Errors: `404` if not found; `409 { "error": "This dispute has already been X" }` if already `RESOLVED`/`REJECTED`.
+
+**Not yet implemented / known limitations** (documented honestly): if a payment was paid **offline** (FR12) and is disputed, there's no real Stripe charge to refund — the parties must settle up between themselves, the API can't move that money. A negative provider balance from a clawed-back refund has no dedicated "provider owes platform" billing flow (unlike FR12's offline-commission bills) — it just sits negative until offset by future earnings.
+
+---
+
+## In-App Messaging (FR14)
+
+Every booking gets its own `Conversation` automatically the moment it's created — there's no separate "start a conversation" step. Only the booking's customer and provider can read or send messages in it.
+
+**GET** `/api/customers/me/bookings/:bookingId/messages` or **GET** `/api/providers/me/bookings/:bookingId/messages` → `200` — every message in the booking's conversation, oldest first, each including `sender` (`{ id, email, role }`). Returns `[]` for a brand-new booking with no messages yet — never `404` for a booking you own. Errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours.
+
+**POST** `/api/customers/me/bookings/:bookingId/messages` or **POST** `/api/providers/me/bookings/:bookingId/messages`:
+```json
+{ "content": "Hi, what time will you arrive?" }
+```
+or, for an image attachment:
+```json
+{ "imageUrl": "https://example.com/before-photo.jpg" }
+```
+`content` and `imageUrl` are each optional, but **at least one is required** — a message can be text-only, image-only, or both. `imageUrl` must already be a real URL (upload the file first via `POST /api/uploads`, the generic public-upload endpoint, then pass the returned URL here — there's no dedicated messaging-image upload route). Response `201`: the created `Message`.
+
+Errors: `400 { "error": "Validation failed", ... }` if neither `content` nor `imageUrl` is provided, or `imageUrl` isn't a valid URL; `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours.
+
+**Not yet implemented** (documented honestly): real-time delivery (the SRS/tech-stack mentions Firebase Firestore or Socket.io for this) — messages are plain request/response REST, so a client has to poll `GET .../messages` for updates. Read receipts also aren't tracked (`Message` has no `isRead` field).
 
 ---
 

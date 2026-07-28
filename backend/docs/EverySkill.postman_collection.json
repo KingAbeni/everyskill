@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "EverySkill Backend",
-    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password, change-password), the customer module (FR2, plus FR11 booking creation/cancellation and FR12 paying for a booking), the provider module (FR3: profile, skills, gallery, certifications, KYC submission, plus FR6 listing management, FR7 AI category recommendation, FR8 availability management, FR11 booking accept/decline/start/complete/cancel, and FR12 payment transaction history), the admin module (FR4: KYC review; FR6: category management; FR24: administrator management), the public Categories/Listings/listing-availability browsing endpoints (FR6/FR8/FR9), AI-powered natural-language search (FR10), and the generic file upload endpoint used by all of the above. Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically. For the Admin folder: run `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) to bootstrap the first SUPER_ADMIN, then run 'Auth > Login (Super Admin)' — every other admin account is created from there via 'Admin > Create Administrator', no public admin-registration endpoint exists. The Uploads request needs a real file attached manually (Postman body > form-data > file field). Run 'Categories > Create Category' and 'Categories > Create Subcategory' (as admin) before 'Provider > Create Listing' — they capture 'categoryId' and 'categoryId2' into collection variables. A listing can belong to multiple categories (categoryIds is an array). Before 'Customer > Create Booking', set up the provider's availability (Provider > Availability folder) covering the scheduledAt you plan to book. For 'Customer > Pay Booking', set STRIPE_SECRET_KEY (test mode, sk_test_...) in backend/.env first — the booking must be ACCEPTED before it can be paid. Beyond the original FR12 wording, this also covers (per direct request): a platform commission percentage settable via 'Admin > Update Platform Settings' (SUPER_ADMIN), provider balances/simulated withdrawals ('Provider > Get My Balance'/'Withdraw Balance'), offline payments as an alternative to Stripe at the same pay step ('Customer > Pay Booking (Offline)', with a disclaimer + a commission bill the provider then owes — 'Provider > List My Bills'/'Pay My Bill'), a 5-day-overdue auto-suspension cron job for unpaid bills, and mid-job extra charges requiring customer approval ('Provider > Request Extra Charge', 'Customer > Respond to Extra Charge'/'Pay Extra Charge').",
+    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password, change-password), the customer module (FR2, plus FR11 booking creation/cancellation and FR12 paying for a booking), the provider module (FR3: profile, skills, gallery, certifications, KYC submission, plus FR6 listing management, FR7 AI category recommendation, FR8 availability management, FR11 booking accept/decline/start/complete/cancel, and FR12 payment transaction history), the admin module (FR4: KYC review; FR6: category management; FR24: administrator management), the public Categories/Listings/listing-availability browsing endpoints (FR6/FR8/FR9), AI-powered natural-language search (FR10), and the generic file upload endpoint used by all of the above. Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically. For the Admin folder: run `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) to bootstrap the first SUPER_ADMIN, then run 'Auth > Login (Super Admin)' — every other admin account is created from there via 'Admin > Create Administrator', no public admin-registration endpoint exists. The Uploads request needs a real file attached manually (Postman body > form-data > file field). Run 'Categories > Create Category' and 'Categories > Create Subcategory' (as admin) before 'Provider > Create Listing' — they capture 'categoryId' and 'categoryId2' into collection variables. A listing can belong to multiple categories (categoryIds is an array). Before 'Customer > Create Booking', set up the provider's availability (Provider > Availability folder) covering the scheduledAt you plan to book. For 'Customer > Pay Booking', set STRIPE_SECRET_KEY (test mode, sk_test_...) in backend/.env first — the booking must be ACCEPTED before it can be paid. Beyond the original FR12 wording, this also covers (per direct request): a platform commission percentage settable via 'Admin > Update Platform Settings' (SUPER_ADMIN), provider balances/simulated withdrawals ('Provider > Get My Balance'/'Withdraw Balance'), offline payments as an alternative to Stripe at the same pay step ('Customer > Pay Booking (Offline)', with a disclaimer + a commission bill the provider then owes — 'Provider > List My Bills'/'Pay My Bill'), a 5-day-overdue auto-suspension cron job for unpaid bills, and mid-job extra charges requiring customer approval ('Provider > Request Extra Charge', 'Customer > Respond to Extra Charge'/'Pay Extra Charge'). FR13 (Cancellation & Dispute Resolution) adds: reschedule as an alternative to a late cancellation ('Customer/Provider > Propose Reschedule'/'Respond to Reschedule'), no-show marking ('Customer/Provider > Mark No-Show') and late-cancellation tracking that feed a violation-count 'standing' (lateCancellationCount/noShowCount on your own profile) with auto-suspension at 3 violations (manually lifted via 'Admin > Reactivate User', unlike FR12's self-healing suspension), and disputes ('Customer/Provider > Open Dispute', 'Admin > List/Get/Mark Under Review/Resolve Dispute' — resolving can release an escrowed payment, refund one (including a real post-capture Stripe refund + balance clawback), or dismiss the dispute outright). FR14 (In-App Messaging) adds: every booking gets a Conversation automatically at creation — 'Customer/Provider > List Messages'/'Send Message' (text and/or an imageUrl, at least one required; upload the image first via the Uploads folder's public upload endpoint).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -31,7 +31,10 @@
     { "key": "bookingId", "value": "" },
     { "key": "chargeId", "value": "" },
     { "key": "billId", "value": "" },
-    { "key": "slotId", "value": "" }
+    { "key": "slotId", "value": "" },
+    { "key": "rescheduleRequestId", "value": "" },
+    { "key": "disputeId", "value": "" },
+    { "key": "targetUserId", "value": "" }
   ],
   "item": [
     {
@@ -536,6 +539,136 @@
             }
           },
           "description": "Charge must be APPROVED first. method is \"stripe\" (immediate capture, not escrowed) or \"offline\" (same disclaimer/bill shape as Pay Booking (Offline))."
+        },
+        {
+          "name": "Propose Reschedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposedAt\": \"2026-08-11T13:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/reschedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "reschedule"]
+            }
+          },
+          "description": "FR13 — an alternative to a late cancellation. Booking must be ACCEPTED/IN_PROGRESS; only one PENDING request allowed at a time. Captures the request id into 'rescheduleRequestId'.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('rescheduleRequestId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Respond to Reschedule",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/reschedule/{{rescheduleRequestId}}/respond",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "reschedule", "{{rescheduleRequestId}}", "respond"]
+            }
+          },
+          "description": "Must be the OTHER party from whoever proposed it (409 otherwise). approve: true moves the booking to the proposed time; approve: false rejects it, booking unchanged."
+        },
+        {
+          "name": "Mark No-Show (Provider)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/no-show",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "no-show"]
+            }
+          },
+          "description": "FR13 — customer marks the PROVIDER as a no-show. No body. Booking must be ACCEPTED/IN_PROGRESS with scheduledAt already in the past (400 otherwise). Cancels the booking and logs a violation against the provider's standing."
+        },
+        {
+          "name": "Open Dispute",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Work was not completed to the agreed standard\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/dispute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "dispute"]
+            }
+          },
+          "description": "Booking must be ACCEPTED/IN_PROGRESS/COMPLETED; one dispute per booking. Moves the booking to DISPUTED (freezing normal actions until an admin resolves it). Captures the id into 'disputeId'.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('disputeId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Messages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "messages"]
+            }
+          },
+          "description": "FR14. Oldest first, each including sender { id, email, role }. Returns [] for a booking with no messages yet (never 404 for a booking you own)."
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Hi, what time will you arrive?\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "messages"]
+            }
+          },
+          "description": "content and imageUrl are each optional but at least one is required (text-only, image-only, or both). For an image, upload it first via Uploads > Upload File (Public) and pass the returned url as imageUrl here."
         },
         {
           "name": "List Consent History",
@@ -1118,6 +1251,136 @@
             }
           },
           "description": "method is \"stripe\" (charges the provider directly) or \"balance\" (deducts from their own platform balance instead, {\"method\":\"balance\"} with no paymentMethodId). Paying off your last overdue bill auto-reactivates a suspended account."
+        },
+        {
+          "name": "Propose Reschedule",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proposedAt\": \"2026-08-11T13:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/reschedule",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "reschedule"]
+            }
+          },
+          "description": "FR13 — an alternative to a late cancellation. Booking must be ACCEPTED/IN_PROGRESS; only one PENDING request allowed at a time. Captures the request id into 'rescheduleRequestId'.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('rescheduleRequestId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Respond to Reschedule",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/reschedule/{{rescheduleRequestId}}/respond",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "reschedule", "{{rescheduleRequestId}}", "respond"]
+            }
+          },
+          "description": "Must be the OTHER party from whoever proposed it (409 otherwise). approve: true moves the booking to the proposed time; approve: false rejects it, booking unchanged."
+        },
+        {
+          "name": "Mark No-Show (Customer)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/no-show",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "no-show"]
+            }
+          },
+          "description": "FR13 — provider marks the CUSTOMER as a no-show. No body. Booking must be ACCEPTED/IN_PROGRESS with scheduledAt already in the past (400 otherwise). Cancels the booking and logs a violation against the customer's standing."
+        },
+        {
+          "name": "Open Dispute",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Customer is disputing work that was actually completed as agreed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/dispute",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "dispute"]
+            }
+          },
+          "description": "Booking must be ACCEPTED/IN_PROGRESS/COMPLETED; one dispute per booking. Moves the booking to DISPUTED. Captures the id into 'disputeId'.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('disputeId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Messages",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "messages"]
+            }
+          },
+          "description": "FR14. Oldest first, each including sender { id, email, role }. Returns [] for a booking with no messages yet (never 404 for a booking you own)."
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"I will be there at 10am sharp!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "messages"]
+            }
+          },
+          "description": "content and imageUrl are each optional but at least one is required (text-only, image-only, or both). For an image, upload it first via Uploads > Upload File (Public) and pass the returned url as imageUrl here."
         }
       ]
     },
@@ -1231,6 +1494,73 @@
             "url": { "raw": "{{baseUrl}}/api/admin/platform-settings", "host": ["{{baseUrl}}"], "path": ["api", "admin", "platform-settings"] }
           },
           "description": "SUPER_ADMIN only (FR24 'Commissions'). commissionPercent is 0-100, deducted whenever a payment or extra charge is released to a provider."
+        },
+        {
+          "name": "Reactivate User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/users/{{targetUserId}}/reactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "users", "{{targetUserId}}", "reactivate"]
+            }
+          },
+          "description": "FR13 — manually lifts a SUSPENDED account (e.g. from 3 logged violations). No body. 409 if the target isn't currently SUSPENDED. Set 'targetUserId' to the suspended user's id first."
+        },
+        {
+          "name": "List Disputes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/disputes", "host": ["{{baseUrl}}"], "path": ["api", "admin", "disputes"] }
+          },
+          "description": "Optional ?status=OPEN|UNDER_REVIEW|RESOLVED|REJECTED filter. Each includes the full booking (customer, providerProfile, listing, payment)."
+        },
+        {
+          "name": "Get Dispute",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/disputes/{{disputeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "disputes", "{{disputeId}}"]
+            }
+          }
+        },
+        {
+          "name": "Mark Dispute Under Review",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/disputes/{{disputeId}}/review",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "disputes", "{{disputeId}}", "review"]
+            }
+          },
+          "description": "No body. Only valid from status OPEN (409 otherwise) — a lightweight bookkeeping step before a final decision."
+        },
+        {
+          "name": "Resolve Dispute",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"REFUND_CUSTOMER\",\n  \"resolution\": \"Provider confirmed to have not shown up; refunding customer.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/disputes/{{disputeId}}/resolve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "disputes", "{{disputeId}}", "resolve"]
+            }
+          },
+          "description": "decision is \"REFUND_CUSTOMER\" (booking -> CANCELLED; refunds the escrow, or issues a real Stripe refund + balance clawback if already captured), \"RELEASE_PROVIDER\" (booking -> COMPLETED; captures the escrow and credits the provider's balance, or no-ops if already released), or \"DISMISS\" (booking -> COMPLETED, no payment action, dispute -> REJECTED). 409 if already resolved/rejected."
         },
         {
           "name": "List KYC Requests",

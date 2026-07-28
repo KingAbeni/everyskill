@@ -133,3 +133,34 @@ export async function forceResetAdminPassword(
     }),
   ]);
 }
+
+/**
+ * Manually lifts a SUSPENDED account (FR13 violation-based suspensions have no automatic
+ * reinstatement path, unlike FR12's offline-billing suspension which reactivates itself once
+ * bills are paid). Also usable as a general override for any suspension, since User.status
+ * doesn't track *why* an account was suspended.
+ */
+export async function reactivateUser(actorId: string, targetUserId: string) {
+  const target = await prisma.user.findUnique({ where: { id: targetUserId } });
+  if (!target) {
+    throw new AppError(404, "User not found");
+  }
+  if (target.status !== "SUSPENDED") {
+    throw new AppError(409, `Cannot reactivate a user with status ${target.status}`);
+  }
+
+  const [updated] = await prisma.$transaction([
+    prisma.user.update({ where: { id: targetUserId }, data: { status: "ACTIVE" } }),
+    prisma.auditLog.create({
+      data: {
+        actorId,
+        action: "USER_REACTIVATED",
+        targetType: "User",
+        targetId: targetUserId,
+        metadata: { targetEmail: target.email } as Prisma.InputJsonValue,
+      },
+    }),
+  ]);
+
+  return { id: updated.id, email: updated.email, role: updated.role, status: updated.status };
+}

@@ -33,6 +33,8 @@ export async function getMyProfile(userId: string) {
     phone: profile.phone,
     avatarUrl: profile.avatarUrl,
     privacyPreferences: profile.privacyPreferences,
+    lateCancellationCount: profile.lateCancellationCount,
+    noShowCount: profile.noShowCount,
   };
 }
 
