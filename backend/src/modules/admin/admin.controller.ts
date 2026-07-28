@@ -1,6 +1,13 @@
 import { Request, Response } from "express";
 import * as adminService from "./admin.service";
-import { createAdminSchema, forceResetAdminPasswordSchema, listKycQuerySchema, reviewKycSchema } from "./admin.schemas";
+import * as platformService from "../platform/platform.service";
+import {
+  createAdminSchema,
+  forceResetAdminPasswordSchema,
+  listKycQuerySchema,
+  reviewKycSchema,
+  updatePlatformSettingsSchema,
+} from "./admin.schemas";
 
 export async function listKycRequestsHandler(req: Request, res: Response) {
   const query = listKycQuerySchema.parse(req.query);
@@ -34,4 +41,15 @@ export async function forceResetAdminPasswordHandler(req: Request, res: Response
   const input = forceResetAdminPasswordSchema.parse(req.body);
   await adminService.forceResetAdminPassword(req.user!.sub, req.params.userId, input);
   res.status(204).send();
+}
+
+export async function getPlatformSettingsHandler(req: Request, res: Response) {
+  const settings = await platformService.getPlatformSettings();
+  res.status(200).json(settings);
+}
+
+export async function updatePlatformSettingsHandler(req: Request, res: Response) {
+  const input = updatePlatformSettingsSchema.parse(req.body);
+  const settings = await platformService.updateCommissionPercent(req.user!.sub, input.commissionPercent);
+  res.status(200).json(settings);
 }

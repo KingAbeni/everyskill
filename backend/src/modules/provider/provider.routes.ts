@@ -29,3 +29,21 @@ providerRouter.get("/me/availability", asyncHandler(providerController.listMyAva
 providerRouter.post("/me/availability", asyncHandler(providerController.createMyAvailabilitySlotHandler));
 providerRouter.patch("/me/availability/:slotId", asyncHandler(providerController.updateMyAvailabilitySlotHandler));
 providerRouter.delete("/me/availability/:slotId", asyncHandler(providerController.deleteMyAvailabilitySlotHandler));
+
+providerRouter.get("/me/bookings", asyncHandler(providerController.listMyBookingsHandler));
+providerRouter.get("/me/bookings/:bookingId", asyncHandler(providerController.getMyBookingHandler));
+providerRouter.patch("/me/bookings/:bookingId/accept", asyncHandler(providerController.acceptBookingHandler));
+providerRouter.patch("/me/bookings/:bookingId/decline", asyncHandler(providerController.declineBookingHandler));
+providerRouter.patch("/me/bookings/:bookingId/start", asyncHandler(providerController.startBookingHandler));
+providerRouter.patch("/me/bookings/:bookingId/complete", asyncHandler(providerController.completeBookingHandler));
+providerRouter.patch("/me/bookings/:bookingId/cancel", asyncHandler(providerController.cancelMyBookingHandler));
+providerRouter.post("/me/bookings/:bookingId/extra-charges", asyncHandler(providerController.requestExtraChargeHandler));
+
+providerRouter.get("/me/payments", asyncHandler(providerController.listMyPaymentsHandler));
+
+providerRouter.get("/me/balance", asyncHandler(providerController.getMyBalanceHandler));
+providerRouter.post("/me/balance/withdraw", asyncHandler(providerController.withdrawBalanceHandler));
+providerRouter.get("/me/withdrawals", asyncHandler(providerController.listMyWithdrawalsHandler));
+
+providerRouter.get("/me/bills", asyncHandler(providerController.listMyBillsHandler));
+providerRouter.post("/me/bills/:billId/pay", asyncHandler(providerController.payMyBillHandler));

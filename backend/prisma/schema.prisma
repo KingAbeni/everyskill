@@ -89,6 +89,18 @@ enum PricingType {
   FIXED
 }
 
+enum ExtraChargeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BillStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
 // ---------- Core identity ----------
 
 model User {
@@ -212,6 +224,9 @@ model ProviderProfile {
   reviews             Review[]
   promotions          Promotion[]
   favoritedBy         FavoriteProvider[]
+  balance             ProviderBalance?
+  withdrawals         WithdrawalRequest[]
+  offlineBills        OfflinePaymentBill[]
 }
 
 model Certification {
@@ -308,6 +323,8 @@ model Booking {
   conversation       Conversation?
   review            Review?
   documentation     ServiceDocumentation[]
+  extraCharges      ExtraCharge[]
+  offlineBills      OfflinePaymentBill[]
 }
 
 model BookingStatusHistory {
@@ -330,6 +347,70 @@ model Payment {
   transactionRef String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+// ---------- Extra charges (mid-job price increases) ----------
+
+model ExtraCharge {
+  id             String            @id @default(uuid())
+  bookingId      String
+  booking        Booking           @relation(fields: [bookingId], references: [id])
+  amount         Decimal
+  reason         String
+  status         ExtraChargeStatus @default(PENDING)
+  requestedById  String
+  respondedAt    DateTime?
+  paymentStatus  PaymentStatus?
+  gateway        String?
+  transactionRef String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+// ---------- Provider earnings, withdrawals, platform commission ----------
+
+model PlatformSettings {
+  id                String   @id @default(uuid())
+  commissionPercent Decimal  @default(10.0)
+  updatedById       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ProviderBalance {
+  id                String          @id @default(uuid())
+  providerProfileId String          @unique
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  availableBalance  Decimal         @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model WithdrawalRequest {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  amount            Decimal
+  createdAt         DateTime        @default(now())
+}
+
+// Commission owed to the platform when a customer pays a provider directly ("offline"),
+// bypassing Stripe (see Payment.gateway = "offline" / ExtraCharge.gateway = "offline").
+// Unpaid past dueAt -> provider is suspended (see the billing cron job).
+model OfflinePaymentBill {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  bookingId         String
+  booking           Booking         @relation(fields: [bookingId], references: [id])
+  sourceType        String          // "BOOKING_PAYMENT" | "EXTRA_CHARGE"
+  amount            Decimal
+  status            BillStatus      @default(PENDING)
+  dueAt             DateTime
+  paidAt            DateTime?
+  paidVia           String?         // "stripe" | "balance"
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 }
 
 model Dispute {

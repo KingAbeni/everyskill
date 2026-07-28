@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import * as customerService from "./customer.service";
+import * as bookingService from "../booking/booking.service";
+import * as paymentService from "../payment/payment.service";
+import * as extraChargeService from "../extraCharge/extraCharge.service";
 import {
   addFavoriteSchema,
   createAddressSchema,
@@ -7,6 +10,9 @@ import {
   updateAddressSchema,
   updateProfileSchema,
 } from "./customer.schemas";
+import { cancelBookingSchema, createBookingSchema } from "../booking/booking.schemas";
+import { payBookingSchema } from "../payment/payment.schemas";
+import { payExtraChargeSchema, respondExtraChargeSchema } from "../extraCharge/extraCharge.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await customerService.getMyProfile(req.user!.sub);
@@ -62,9 +68,49 @@ export async function listBookingsHandler(req: Request, res: Response) {
   res.status(200).json(bookings);
 }
 
+export async function createBookingHandler(req: Request, res: Response) {
+  const input = createBookingSchema.parse(req.body);
+  const booking = await bookingService.createBooking(req.user!.sub, input);
+  res.status(201).json(booking);
+}
+
+export async function getBookingHandler(req: Request, res: Response) {
+  const booking = await bookingService.getCustomerBooking(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function cancelBookingHandler(req: Request, res: Response) {
+  const input = cancelBookingSchema.parse(req.body);
+  const booking = await bookingService.cancelBookingAsCustomer(req.user!.sub, req.params.bookingId, input);
+  res.status(200).json(booking);
+}
+
 export async function listPaymentsHandler(req: Request, res: Response) {
   const payments = await customerService.listPayments(req.user!.sub);
   res.status(200).json(payments);
+}
+
+export async function payBookingHandler(req: Request, res: Response) {
+  const input = payBookingSchema.parse(req.body);
+  const payment = await paymentService.payForBooking(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(payment);
+}
+
+export async function respondExtraChargeHandler(req: Request, res: Response) {
+  const input = respondExtraChargeSchema.parse(req.body);
+  const charge = await extraChargeService.respondToExtraCharge(
+    req.user!.sub,
+    req.params.bookingId,
+    req.params.chargeId,
+    input,
+  );
+  res.status(200).json(charge);
+}
+
+export async function payExtraChargeHandler(req: Request, res: Response) {
+  const input = payExtraChargeSchema.parse(req.body);
+  const result = await extraChargeService.payExtraCharge(req.user!.sub, req.params.bookingId, req.params.chargeId, input);
+  res.status(201).json(result);
 }
 
 export async function listConsentsHandler(req: Request, res: Response) {

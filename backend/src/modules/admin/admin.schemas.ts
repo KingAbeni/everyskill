@@ -23,3 +23,7 @@ export const createAdminSchema = z.object({
 export const forceResetAdminPasswordSchema = z.object({
   newPassword: z.string().min(8),
 });
+
+export const updatePlatformSettingsSchema = z.object({
+  commissionPercent: z.number().min(0).max(100),
+});

@@ -22,6 +22,18 @@ customerRouter.post("/me/favorites", asyncHandler(customerController.addFavorite
 customerRouter.delete("/me/favorites/:providerProfileId", asyncHandler(customerController.removeFavoriteHandler));
 
 customerRouter.get("/me/bookings", asyncHandler(customerController.listBookingsHandler));
+customerRouter.post("/me/bookings", asyncHandler(customerController.createBookingHandler));
+customerRouter.get("/me/bookings/:bookingId", asyncHandler(customerController.getBookingHandler));
+customerRouter.patch("/me/bookings/:bookingId/cancel", asyncHandler(customerController.cancelBookingHandler));
+customerRouter.post("/me/bookings/:bookingId/pay", asyncHandler(customerController.payBookingHandler));
+customerRouter.patch(
+  "/me/bookings/:bookingId/extra-charges/:chargeId/respond",
+  asyncHandler(customerController.respondExtraChargeHandler),
+);
+customerRouter.post(
+  "/me/bookings/:bookingId/extra-charges/:chargeId/pay",
+  asyncHandler(customerController.payExtraChargeHandler),
+);
 customerRouter.get("/me/payments", asyncHandler(customerController.listPaymentsHandler));
 
 customerRouter.get("/me/consents", asyncHandler(customerController.listConsentsHandler));

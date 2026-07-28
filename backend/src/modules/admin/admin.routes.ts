@@ -19,3 +19,11 @@ adminRouter.patch(
   requireRole("SUPER_ADMIN"),
   asyncHandler(adminController.forceResetAdminPasswordHandler),
 );
+
+// Platform settings (FR24 "Commissions") — GET open to ADMIN/SUPER_ADMIN, PATCH SUPER_ADMIN only.
+adminRouter.get("/platform-settings", asyncHandler(adminController.getPlatformSettingsHandler));
+adminRouter.patch(
+  "/platform-settings",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(adminController.updatePlatformSettingsHandler),
+);

@@ -91,6 +91,10 @@ export async function login(email: string, password: string) {
     throw new AppError(401, "Invalid email or password");
   }
 
+  if (user.status === "SUSPENDED" || user.status === "BANNED") {
+    throw new AppError(403, "Your account has been suspended. Please contact support.");
+  }
+
   const tokens = await issueTokens(user.id, user.role);
   return { user, ...tokens };
 }

@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "EverySkill Backend",
-    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password, change-password), the customer module (FR2), the provider module (FR3: profile, skills, gallery, certifications, KYC submission, plus FR6 listing management, FR7 AI category recommendation, and FR8 availability management), the admin module (FR4: KYC review; FR6: category management; FR24: administrator management), the public Categories/Listings/listing-availability browsing endpoints (FR6/FR8/FR9), AI-powered natural-language search (FR10), and the generic file upload endpoint used by all of the above. Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically. For the Admin folder: run `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) to bootstrap the first SUPER_ADMIN, then run 'Auth > Login (Super Admin)' — every other admin account is created from there via 'Admin > Create Administrator', no public admin-registration endpoint exists. The Uploads request needs a real file attached manually (Postman body > form-data > file field). Run 'Categories > Create Category' and 'Categories > Create Subcategory' (as admin) before 'Provider > Create Listing' — they capture 'categoryId' and 'categoryId2' into collection variables. A listing can belong to multiple categories (categoryIds is an array).",
+    "description": "All API endpoints implemented so far: health check, full auth module (register, login, refresh, logout, forgot-password, reset-password, change-password), the customer module (FR2, plus FR11 booking creation/cancellation and FR12 paying for a booking), the provider module (FR3: profile, skills, gallery, certifications, KYC submission, plus FR6 listing management, FR7 AI category recommendation, FR8 availability management, FR11 booking accept/decline/start/complete/cancel, and FR12 payment transaction history), the admin module (FR4: KYC review; FR6: category management; FR24: administrator management), the public Categories/Listings/listing-availability browsing endpoints (FR6/FR8/FR9), AI-powered natural-language search (FR10), and the generic file upload endpoint used by all of the above. Import into Postman, then run 'Auth > Register (Customer)' for the Customer folder, 'Auth > Register (Provider - Individual/Business)' for the Provider folder — tokens are captured into collection variables automatically. For the Admin folder: run `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) to bootstrap the first SUPER_ADMIN, then run 'Auth > Login (Super Admin)' — every other admin account is created from there via 'Admin > Create Administrator', no public admin-registration endpoint exists. The Uploads request needs a real file attached manually (Postman body > form-data > file field). Run 'Categories > Create Category' and 'Categories > Create Subcategory' (as admin) before 'Provider > Create Listing' — they capture 'categoryId' and 'categoryId2' into collection variables. A listing can belong to multiple categories (categoryIds is an array). Before 'Customer > Create Booking', set up the provider's availability (Provider > Availability folder) covering the scheduledAt you plan to book. For 'Customer > Pay Booking', set STRIPE_SECRET_KEY (test mode, sk_test_...) in backend/.env first — the booking must be ACCEPTED before it can be paid. Beyond the original FR12 wording, this also covers (per direct request): a platform commission percentage settable via 'Admin > Update Platform Settings' (SUPER_ADMIN), provider balances/simulated withdrawals ('Provider > Get My Balance'/'Withdraw Balance'), offline payments as an alternative to Stripe at the same pay step ('Customer > Pay Booking (Offline)', with a disclaimer + a commission bill the provider then owes — 'Provider > List My Bills'/'Pay My Bill'), a 5-day-overdue auto-suspension cron job for unpaid bills, and mid-job extra charges requiring customer approval ('Provider > Request Extra Charge', 'Customer > Respond to Extra Charge'/'Pay Extra Charge').",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -28,6 +28,9 @@
     { "key": "categoryId", "value": "" },
     { "key": "categoryId2", "value": "" },
     { "key": "listingId", "value": "" },
+    { "key": "bookingId", "value": "" },
+    { "key": "chargeId", "value": "" },
+    { "key": "billId", "value": "" },
     { "key": "slotId", "value": "" }
   ],
   "item": [
@@ -383,8 +386,108 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": { "raw": "{{baseUrl}}/api/customers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "bookings"] }
+          }
+        },
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"scheduledAt\": \"2026-08-10T09:00:00.000Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/customers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "bookings"] }
           },
-          "description": "Returns [] until the booking module is built."
+          "description": "scheduledAt must be in the future, within the provider's declared availability (Provider > Availability folder), and not conflict with another active booking for that provider. price is copied from the listing automatically.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('bookingId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Booking",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}"]
+            }
+          },
+          "description": "Includes statusHistory — the full audit trail of status transitions (FR11)."
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cancellationReason\": \"Change of plans\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "cancel"]
+            }
+          },
+          "description": "cancellationReason is optional. Only valid from REQUESTED/ACCEPTED/IN_PROGRESS — 409 otherwise."
+        },
+        {
+          "name": "Pay Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"stripe\",\n  \"paymentMethodId\": \"pm_card_visa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "pay"]
+            }
+          },
+          "description": "FR12. method is \"stripe\" (default) or \"offline\" — see 'Pay Booking (Offline)' below. paymentMethodId optional (defaults to pm_card_visa, Stripe's always-succeeds test card). Use pm_card_chargeDeclined to test a failed payment. Booking must be ACCEPTED first (Provider > Accept Booking). Requires STRIPE_SECRET_KEY (test mode) in backend/.env."
+        },
+        {
+          "name": "Pay Booking (Offline)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"offline\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "pay"]
+            }
+          },
+          "description": "Pays the provider directly, bypassing Stripe. Response includes a 'disclaimer' (platform doesn't guarantee offline payments), 'amountDue', and 'platformBill' — the commission the provider now owes the platform (due in 5 days, see Provider > List My Bills)."
         },
         {
           "name": "List Payment History",
@@ -392,8 +495,47 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": { "raw": "{{baseUrl}}/api/customers/me/payments", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "payments"] }
+          }
+        },
+        {
+          "name": "Respond to Extra Charge",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approve\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/extra-charges/{{chargeId}}/respond",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "extra-charges", "{{chargeId}}", "respond"]
+            }
           },
-          "description": "Returns [] until the booking/payment modules are built."
+          "description": "approve: true increases the booking's price by the charge amount; approve: false rejects it with no further effect. Run Provider > Request Extra Charge first to populate 'chargeId'."
+        },
+        {
+          "name": "Pay Extra Charge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"stripe\",\n  \"paymentMethodId\": \"pm_card_visa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/extra-charges/{{chargeId}}/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "extra-charges", "{{chargeId}}", "pay"]
+            }
+          },
+          "description": "Charge must be APPROVED first. method is \"stripe\" (immediate capture, not escrowed) or \"offline\" (same disclaimer/bill shape as Pay Booking (Offline))."
         },
         {
           "name": "List Consent History",
@@ -780,6 +922,202 @@
             }
           },
           "description": "Returns a signed URL valid for 10 minutes."
+        },
+        {
+          "name": "List My Bookings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "bookings"] }
+          }
+        },
+        {
+          "name": "Get My Booking",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}"]
+            }
+          },
+          "description": "Includes statusHistory — the full audit trail of status transitions (FR11)."
+        },
+        {
+          "name": "Accept Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/accept",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "accept"]
+            }
+          },
+          "description": "No body. REQUESTED -> ACCEPTED. 409 if the booking isn't currently REQUESTED."
+        },
+        {
+          "name": "Decline Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/decline",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "decline"]
+            }
+          },
+          "description": "No body. REQUESTED -> DECLINED."
+        },
+        {
+          "name": "Start Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "start"]
+            }
+          },
+          "description": "No body. ACCEPTED -> IN_PROGRESS."
+        },
+        {
+          "name": "Complete Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "complete"]
+            }
+          },
+          "description": "No body. IN_PROGRESS -> COMPLETED."
+        },
+        {
+          "name": "Cancel Booking (Provider)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cancellationReason\": \"Provider unavailable due to an emergency\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "cancel"]
+            }
+          },
+          "description": "cancellationReason optional. Valid from REQUESTED/ACCEPTED/IN_PROGRESS."
+        },
+        {
+          "name": "Request Extra Charge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 25,\n  \"reason\": \"Found additional plumbing damage requiring extra parts\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/extra-charges",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "extra-charges"]
+            }
+          },
+          "description": "Booking must be ACCEPTED or IN_PROGRESS. Captures the new charge's id into 'chargeId' — the customer must approve it (Customer > Respond to Extra Charge) before it can be paid.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('chargeId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List My Payments",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/payments", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "payments"] }
+          },
+          "description": "FR12 transaction history — every payment across bookings for your listings, including each payment's booking."
+        },
+        {
+          "name": "Get My Balance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/balance", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "balance"] }
+          },
+          "description": "Credited automatically (net of platform commission) whenever a Stripe payment or extra charge is released."
+        },
+        {
+          "name": "Withdraw Balance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/providers/me/balance/withdraw", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "balance", "withdraw"] }
+          },
+          "description": "amount optional — omit to withdraw the entire available balance. Simulated: no real bank transfer, just marks the ledger amount as paid out."
+        },
+        {
+          "name": "List My Withdrawals",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/withdrawals", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "withdrawals"] }
+          }
+        },
+        {
+          "name": "List My Bills",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/providers/me/bills", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "bills"] }
+          },
+          "description": "Commission owed on offline-paid bookings/extra charges. Unpaid past 5 days -> account suspended (see docs/API.md)."
+        },
+        {
+          "name": "Pay My Bill",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"stripe\",\n  \"paymentMethodId\": \"pm_card_visa\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bills/{{billId}}/pay",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "providers", "me", "bills", "{{billId}}", "pay"]
+            }
+          },
+          "description": "method is \"stripe\" (charges the provider directly) or \"balance\" (deducts from their own platform balance instead, {\"method\":\"balance\"} with no paymentMethodId). Paying off your last overdue bill auto-reactivates a suspended account."
         }
       ]
     },
@@ -868,6 +1206,31 @@
             }
           },
           "description": "SUPER_ADMIN only. Directly sets the target ADMIN/SUPER_ADMIN account's password (offboarding/lockout recovery) — no email/token round-trip. Revokes their refresh token and clears any pending self-service reset token."
+        },
+        {
+          "name": "Get Platform Settings",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/admin/platform-settings", "host": ["{{baseUrl}}"], "path": ["api", "admin", "platform-settings"] }
+          },
+          "description": "ADMIN or SUPER_ADMIN. Auto-creates a default 10% commission the first time this is read."
+        },
+        {
+          "name": "Update Platform Settings (Commission)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"commissionPercent\": 10\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/admin/platform-settings", "host": ["{{baseUrl}}"], "path": ["api", "admin", "platform-settings"] }
+          },
+          "description": "SUPER_ADMIN only (FR24 'Commissions'). commissionPercent is 0-100, deducted whenever a payment or extra charge is released to a provider."
         },
         {
           "name": "List KYC Requests",

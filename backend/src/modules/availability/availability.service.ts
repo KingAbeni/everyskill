@@ -10,6 +10,10 @@ function normalizeDate(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
+function formatTime(date: Date): string {
+  return `${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")}`;
+}
+
 async function getProviderProfileOrThrow(userId: string) {
   const profile = await prisma.providerProfile.findUnique({ where: { userId } });
   if (!profile) {
@@ -48,6 +52,38 @@ export async function listAvailableProviderIds(date: Date): Promise<string[]> {
   const open = new Set([...openForDate, ...openRecurring].map((s) => s.providerProfileId));
 
   return [...open].filter((id) => !blocked.has(id));
+}
+
+/**
+ * Booking-time "is this provider open for this exact start time + duration" check (FR11).
+ * Unlike listAvailableProviderIds (a same-day, search-level check), this checks the precise
+ * time range: it must be fully covered by at least one OPEN slot and not intersected by any
+ * BLOCKED slot (partial blocks like a lunch break DO exclude a booking here, unlike in search).
+ * Bookings that would cross midnight aren't supported by this slot model and are rejected.
+ */
+export async function isProviderAvailableAt(
+  providerProfileId: string,
+  startAt: Date,
+  durationMinutes: number,
+): Promise<boolean> {
+  const date = normalizeDate(startAt);
+  const endAt = new Date(startAt.getTime() + durationMinutes * 60_000);
+  if (normalizeDate(endAt).getTime() !== date.getTime()) {
+    return false;
+  }
+
+  const startTime = formatTime(startAt);
+  const endTime = formatTime(endAt);
+  const dayOfWeek = date.getUTCDay();
+
+  const slots = await prisma.availabilitySlot.findMany({
+    where: { providerProfileId, OR: [{ date }, { dayOfWeek }] },
+  });
+
+  const isOpen = slots.some((s) => !s.isBlocked && s.startTime <= startTime && endTime <= s.endTime);
+  const isBlocked = slots.some((s) => s.isBlocked && startTime < s.endTime && s.startTime < endTime);
+
+  return isOpen && !isBlocked;
 }
 
 async function getOwnedSlotOrThrow(userId: string, slotId: string) {

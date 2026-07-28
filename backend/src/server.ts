@@ -1,6 +1,7 @@
 import { createApp } from "./app";
 import { env } from "./config/env";
 import { ensureUploadBucketsExist } from "./config/supabaseStorage";
+import { startOfflineBillingCron } from "./jobs/offlineBillingCron";
 
 async function main() {
   await ensureUploadBucketsExist();
@@ -10,6 +11,8 @@ async function main() {
   app.listen(env.port, () => {
     console.log(`EverySkill backend listening on port ${env.port}`);
   });
+
+  startOfflineBillingCron();
 }
 
 main().catch((err) => {

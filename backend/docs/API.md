@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -291,11 +291,9 @@ Response `201`. Idempotent — favoriting the same provider twice just returns t
 
 ### Booking & payment history
 
-**GET** `/api/customers/me/bookings` → `200` — array of bookings (with `listing`, `providerProfile`, `payment` included), newest first.
+**GET** `/api/customers/me/bookings` → `200` — array of bookings (with `listing`, `providerProfile`, `payment` included), newest first. See **Booking Management (FR11)** below for creating/managing bookings, and **Escrow Payment System (FR12)** for paying a booking.
 
 **GET** `/api/customers/me/payments` → `200` — array of payments across all your bookings, newest first.
-
-Both return `[]` for now — the booking/listing modules haven't been built yet, so nothing can populate these tables.
 
 ### Consent history (FR5/GDPR)
 
@@ -674,7 +672,7 @@ Response `200`:
 ```
 `matchReasons` is computed deterministically from the actual filter values (not a separate AI call per result) — this is the "explain recommendations" requirement, satisfied without extra latency/hallucination risk. If nothing in the category list clearly matches the query, `category` comes back `null` and the search runs unfiltered by category rather than guessing.
 
-**Current limitations** (documented honestly rather than silently no-op'd): ranking only orders by verification/recency/distance — semantic similarity, ratings, review count, response time, acceptance rate, and completed-jobs-based ranking are **not yet implemented**, since Reviews (FR16) and Bookings (FR11) don't exist yet to supply that data. Once those modules exist, this endpoint's ranking will incorporate them.
+**Current limitations** (documented honestly rather than silently no-op'd): ranking only orders by verification/recency/distance — semantic similarity, ratings, review count, response time, acceptance rate, and completed-jobs-based ranking are **not yet implemented**, since Reviews (FR16) don't exist yet to supply that data, and Bookings (FR11, now built) don't yet track response time/acceptance rate/completed-jobs counts. Once those exist, this endpoint's ranking will incorporate them.
 
 Backed by [Groq](https://console.groq.com)'s free-tier API (`GROQ_API_KEY` in `.env`, same as FR7). Errors:
 | Status | Body | Cause |
@@ -697,7 +695,7 @@ Exactly one of `dayOfWeek`/`date` must be provided — never both, never neither
 
 `isBlocked` distinguishes an **open** window (`false`, the default) from a **blocked** one (`true`, e.g. a lunch break or a day off). A blocked window is allowed to overlap an open window on the same `dayOfWeek`/`date` — that's how you carve out a break inside a working day. Two **open** windows overlapping on the same `dayOfWeek`/`date` are rejected, since that would be an ambiguous/duplicate availability definition.
 
-Note: this defines a provider's *declared* availability. Actual double-booking prevention against real bookings will be enforced once the Booking module (FR11) exists and checks a requested time against both these slots and other confirmed bookings.
+Note: this defines a provider's *declared* availability. Real double-booking prevention against actual bookings (checking a requested exact time + duration against both these slots and other confirmed bookings) is enforced by the Booking module — see **Booking Management (FR11)** below.
 
 ### List my availability
 
@@ -726,6 +724,245 @@ Response `201`. Errors:
 ### Delete an availability slot
 
 **DELETE** `/api/providers/me/availability/:slotId` → `204`. Errors: `404 { "error": "Availability slot not found" }`.
+
+---
+
+## Booking Management (FR11)
+
+Booking workflow states: `REQUESTED → ACCEPTED → IN_PROGRESS → COMPLETED`, with `CANCELLED`/`DECLINED` as exits and `DISPUTED` reserved for the future Dispute flow (FR13). Every transition is validated server-side and recorded in `BookingStatusHistory` (returned as `statusHistory` on the single-booking `GET` endpoints below).
+
+Allowed transitions (anything else → `409 { "error": "Cannot transition booking from X to Y" }`):
+```
+REQUESTED   → ACCEPTED | DECLINED | CANCELLED
+ACCEPTED    → IN_PROGRESS | CANCELLED
+IN_PROGRESS → COMPLETED | CANCELLED
+COMPLETED / CANCELLED / DECLINED / DISPUTED → (terminal — no further transitions)
+```
+
+**Double-booking prevention**: creating a booking checks the exact requested time + the listing's `durationMinutes` against (a) the provider's declared `AvailabilitySlot`s (FR8) — must be fully covered by an open window and not intersected by a blocked one — and (b) every other booking for that provider that isn't `CANCELLED`/`DECLINED`, for a real time-range overlap. Bookings that would cross midnight aren't supported by the current slot model and are rejected.
+
+**Payment sync (FR12)**: marking a booking `COMPLETED` automatically releases its escrowed payment (if any); marking it `CANCELLED` automatically refunds it (if any) — see **Escrow Payment System (FR12)** below. A booking with no payment (never paid, or paid then already resolved) is unaffected — this is a no-op, not an error.
+
+**Not yet implemented** (documented honestly): no-show/late-cancellation accounting against the cutoff hour defined on the listing (`cancellationCutoffHours`) — that's Cancellation & Dispute Resolution, FR13.
+
+### Customer — create and manage my bookings `/api/customers/me/bookings`
+
+Requires `Authorization: Bearer <accessToken>` for a **CUSTOMER** account.
+
+**GET** `/api/customers/me/bookings` → `200` — array of all your bookings (with `listing`, `providerProfile`, `payment` included), newest first.
+
+**POST** `/api/customers/me/bookings`:
+```json
+{
+  "listingId": "listing-uuid",
+  "scheduledAt": "2026-08-10T09:00:00.000Z"
+}
+```
+`price` is copied from the listing at booking time (a snapshot — later listing price changes don't retroactively affect existing bookings). Response `201`, status starts as `REQUESTED`.
+
+Errors:
+| Status | Body | Cause |
+|---|---|---|
+| `400` | `{ "error": "Validation failed", ... }` | Missing/invalid `listingId` or `scheduledAt` |
+| `404` | `{ "error": "Listing not found" }` | Listing doesn't exist or is inactive |
+| `400` | `{ "error": "scheduledAt must be in the future" }` | Requested time is in the past |
+| `400` | `{ "error": "Requested time is outside the provider's declared availability" }` | No open `AvailabilitySlot` covers the full requested time range, or a blocked one intersects it |
+| `409` | `{ "error": "This time conflicts with an existing booking for this provider" }` | Overlaps another active booking for the same provider |
+
+**GET** `/api/customers/me/bookings/:bookingId` → `200` — one booking including `statusHistory`. Errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours.
+
+**PATCH** `/api/customers/me/bookings/:bookingId/cancel`:
+```json
+{ "cancellationReason": "Change of plans" }
+```
+`cancellationReason` optional. Only valid from `REQUESTED`/`ACCEPTED`/`IN_PROGRESS`. Response `200`. Errors: `404` if not found/not yours; `409` if the booking is already in a terminal state.
+
+### Provider — manage bookings against my listings `/api/providers/me/bookings`
+
+Requires `Authorization: Bearer <accessToken>` for a **PROVIDER** account.
+
+**GET** `/api/providers/me/bookings` → `200` — array of all bookings against your listings, newest-scheduled first.
+
+**GET** `/api/providers/me/bookings/:bookingId` → `200` — one booking including `statusHistory`. Errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours.
+
+**PATCH** `/api/providers/me/bookings/:bookingId/accept` — no body → `REQUESTED → ACCEPTED`. Response `200`.
+
+**PATCH** `/api/providers/me/bookings/:bookingId/decline` — no body → `REQUESTED → DECLINED`. Response `200`.
+
+**PATCH** `/api/providers/me/bookings/:bookingId/start` — no body → `ACCEPTED → IN_PROGRESS`. Response `200`.
+
+**PATCH** `/api/providers/me/bookings/:bookingId/complete` — no body → `IN_PROGRESS → COMPLETED`. Response `200`.
+
+**PATCH** `/api/providers/me/bookings/:bookingId/cancel`:
+```json
+{ "cancellationReason": "Provider unavailable due to an emergency" }
+```
+`cancellationReason` optional. Same allowed-from states as the customer's cancel. Response `200`.
+
+All six action endpoints share these errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours; `409 { "error": "Cannot transition booking from X to Y" }` if the current status doesn't allow that action.
+
+---
+
+## Extra Charges — mid-job price increases
+
+If a provider finds extra work is needed partway through a job (e.g. unexpected damage), they can propose an additional charge; it only takes effect once the customer explicitly approves it.
+
+**POST** `/api/providers/me/bookings/:bookingId/extra-charges` — **PROVIDER**, must own the booking, which must be `ACCEPTED` or `IN_PROGRESS`.
+```json
+{ "amount": 25, "reason": "Found additional plumbing damage requiring extra parts" }
+```
+Response `201`: the created `ExtraCharge` (`status: "PENDING"`). Errors: `404` if not found/not yours; `409` if the booking is in any other status.
+
+**PATCH** `/api/customers/me/bookings/:bookingId/extra-charges/:chargeId/respond` — **CUSTOMER**, must own the booking.
+```json
+{ "approve": true }
+```
+`approve: true` ⇒ `status: "APPROVED"` and the booking's `price` is **increased** by the charge's `amount` (a permanent record of the total owed — doesn't retroactively affect an already-paid original amount). `approve: false` ⇒ `status: "REJECTED"`, nothing else changes. Response `200`. Errors: `404` if not found; `409 { "error": "This extra charge has already been X" }` if it's not still `PENDING`.
+
+**POST** `/api/customers/me/bookings/:bookingId/extra-charges/:chargeId/pay` — **CUSTOMER**, must own the booking, charge must be `APPROVED`.
+```json
+{ "method": "stripe", "paymentMethodId": "pm_card_visa" }
+```
+Same `method: "stripe" | "offline"` shape as booking payment (see Escrow Payment System below) — the offline branch returns the same `{ extraCharge, disclaimer, amountDue, platformBill }` shape. Unlike the main booking payment, this is captured **immediately** (no escrow hold) — by the time an extra charge is being requested, the work is already underway, so there's no need for the same up-front trust mechanism as the initial booking payment. On success, `ExtraCharge.paymentStatus` → `"RELEASED"` and (for the Stripe path) the provider's balance is credited immediately, net of commission. Response `201`.
+
+Errors: `404` if not found/not yours; `409 { "error": "This extra charge must be approved before it can be paid" }` if not yet `APPROVED`; `409 { "error": "This extra charge has already been paid" }` if already paid; `402` on a declined card (recorded as `paymentStatus: "FAILED"`, retriable just like booking payments).
+
+Extra charges (with their `status`/`paymentStatus`) are included in the `extraCharges` array on every booking `GET` response (both customer and provider sides).
+
+---
+
+## Escrow Payment System (FR12)
+
+Payment status: `PENDING → ESCROW → RELEASED` (happy path) or `→ REFUNDED` (cancelled before completion) or `FAILED` (card declined / gateway error). Backed by **Stripe** in **test mode** — no real card or money is ever involved. A `Payment` row is created only once a customer actually pays; a booking with no `Payment` is simply unpaid (nothing in the flow requires payment).
+
+**Setup**: set `STRIPE_SECRET_KEY` in `backend/.env` to a Stripe **test-mode secret key** (`sk_test_...`, free at https://dashboard.stripe.com/test/apikeys — use the *secret* key, not the publishable one; the publishable key is for client-side/frontend code, which doesn't exist yet here). Without it, `POST .../pay` returns `500`.
+
+**Test PaymentMethod ids** (Stripe's well-known test tokens — no real card needed):
+| Id | Result |
+|---|---|
+| `pm_card_visa` (default if `paymentMethodId` omitted) | Always succeeds |
+| `pm_card_chargeDeclined` | Always fails with a card-decline error |
+
+### Pay for a booking
+
+**POST** `/api/customers/me/bookings/:bookingId/pay` — **CUSTOMER** account, must own the booking.
+```json
+{ "method": "stripe", "paymentMethodId": "pm_card_visa" }
+```
+`method` is `"stripe"` (default) or `"offline"` — see **Offline Payments** below for the offline branch's response shape. `paymentMethodId` optional (Stripe path only), defaults to `pm_card_visa`. For `"stripe"`, this creates a Stripe PaymentIntent with `capture_method: "manual"` (the funds are authorized/held, not yet captured — this *is* the escrow) and confirms it immediately. Response `201`: the created `Payment` row (`{ id, bookingId, amount, gateway: "stripe", status, transactionRef, createdAt, updatedAt }`), with `status: "ESCROW"` on success.
+
+Only valid once the booking is `ACCEPTED` (pay after the provider commits, not while still just `REQUESTED`). Failed attempts (e.g. a declined card) are recorded as a `Payment` row with `status: "FAILED"` — this does **not** permanently block the booking: retrying `pay` again (e.g. with a different `paymentMethodId`) clears the failed record and tries again. A booking can only ever have one *non-failed* payment (`Payment.bookingId` is unique).
+
+Errors:
+| Status | Body | Cause |
+|---|---|---|
+| `404` | `{ "error": "Booking not found" }` | Doesn't exist or isn't yours |
+| `409` | `{ "error": "Cannot pay for a booking in status X — it must be ACCEPTED first" }` | Booking isn't `ACCEPTED` yet |
+| `409` | `{ "error": "This booking already has a payment" }` | A non-`FAILED` `Payment` already exists for this booking |
+| `402` | `{ "error": "Payment failed: <Stripe's message>" }` | Stripe declined the card or the PaymentIntent otherwise failed |
+| `500` | `{ "error": "Escrow payments are not configured (missing STRIPE_SECRET_KEY)" }` | `STRIPE_SECRET_KEY` not set |
+
+### Release and refund — automatic, not separate endpoints
+
+There is no manual "release" or "refund" endpoint. Instead, payment status is **synchronized to booking status** (see Booking Management above):
+- Booking → `COMPLETED` ⇒ the escrowed PaymentIntent is **captured** (funds move from held to released) ⇒ `Payment.status` → `RELEASED`, and the provider's platform **balance** is credited `amount - commission` (see Platform Commission below).
+- Booking → `CANCELLED` ⇒ the escrowed PaymentIntent is **cancelled** (the hold is released, no charge ever occurs) ⇒ `Payment.status` → `REFUNDED`. No balance change (nothing was ever credited).
+
+Both are no-ops if the booking has no payment, or its payment isn't currently `ESCROW` (e.g. already resolved, or never paid).
+
+### Transaction history
+
+**GET** `/api/customers/me/payments` → `200` — every payment across your own bookings, newest first (Customer Module, above).
+
+**GET** `/api/providers/me/payments` → `200` — every payment across bookings for your listings, newest first, each including the `booking`. Requires a **PROVIDER** account.
+
+---
+
+## Platform Commission (FR24 "Commissions")
+
+A single, platform-wide commission percentage is deducted whenever a payment (or extra charge, see below) is released to a provider. Stored as a singleton `PlatformSettings` row (auto-created with a `10%` default the first time it's read).
+
+**GET** `/api/admin/platform-settings` — **ADMIN or SUPER_ADMIN** → `200`:
+```json
+{ "id": "...", "commissionPercent": "10", "updatedById": null, "createdAt": "...", "updatedAt": "..." }
+```
+
+**PATCH** `/api/admin/platform-settings` — **SUPER_ADMIN only**:
+```json
+{ "commissionPercent": 15 }
+```
+`commissionPercent` is `0`–`100`. Response `200`: the updated settings row. Errors: `400` on an out-of-range value; `403` for a plain `ADMIN` token.
+
+---
+
+## Provider Balance & Withdrawals
+
+Providers accumulate a platform-held **balance** from released Stripe payments/extra charges (net of commission), which they can withdraw at any time. **Withdrawals are simulated** — no real bank transfer happens (that would require Stripe Connect, a separate provider-side onboarding integration that's out of scope here); withdrawing just marks the ledger amount as paid out.
+
+**GET** `/api/providers/me/balance` — **PROVIDER** → `200`:
+```json
+{ "id": "...", "providerProfileId": "...", "availableBalance": "90", "createdAt": "...", "updatedAt": "..." }
+```
+Returns `{ providerProfileId, availableBalance: 0 }` if the provider has never had a payment released yet (no `ProviderBalance` row exists).
+
+**POST** `/api/providers/me/balance/withdraw`:
+```json
+{ "amount": 50 }
+```
+`amount` optional — omit it to withdraw the **entire** available balance. Response `201`: the created `WithdrawalRequest` row (`{ id, providerProfileId, amount, createdAt }`) — withdrawals are instant and always "complete" in this simulated model.
+
+Errors: `400 { "error": "Nothing available to withdraw" }` if `amount` is `0`/negative, or balance is `0`; `409 { "error": "Withdrawal amount exceeds available balance" }` if `amount` is more than what's available (or no balance row exists at all).
+
+**GET** `/api/providers/me/withdrawals` → `200` — full withdrawal history, newest first.
+
+---
+
+## Offline Payments
+
+At the same "pay" step as escrow (`POST .../pay` or `.../extra-charges/:chargeId/pay`, see Extra Charges below), a customer can choose to pay the provider **directly, outside the platform** (cash, bank transfer between the two of them, etc.) instead of through Stripe.
+
+```json
+{ "method": "offline" }
+```
+
+Response `201`:
+```json
+{
+  "payment": { "id": "...", "bookingId": "...", "amount": "100", "gateway": "offline", "status": "RELEASED", "transactionRef": null, "createdAt": "...", "updatedAt": "..." },
+  "disclaimer": "This is an offline payment made directly between you and the provider. EverySkill does not guarantee, hold, or protect offline payments — there is no escrow and no refund process through the platform if something goes wrong. Make sure to pay the provider the full amount owed.",
+  "amountDue": 100,
+  "platformBill": { "id": "...", "providerProfileId": "...", "bookingId": "...", "sourceType": "BOOKING_PAYMENT", "amount": "10", "status": "PENDING", "dueAt": "...", "paidAt": null, "paidVia": null, "createdAt": "...", "updatedAt": "..." }
+}
+```
+- `disclaimer` is always returned so a client UI can surface the "not guaranteed" warning prominently, and `amountDue` restates exactly what the customer owes the provider.
+- The `Payment` (or `ExtraCharge`) is immediately marked `RELEASED` — from the platform's bookkeeping perspective the provider already has the money in hand, so **no balance credit happens** (they never gave the platform custody of it — there's nothing to "withdraw" for an offline payment).
+- Since the platform never touched real money for this transaction, it didn't collect its commission automatically — so a **commission bill** (`platformBill`) is created instead. See below.
+
+---
+
+## Offline Payment Bills & Provider Suspension
+
+Every offline payment/extra-charge creates an `OfflinePaymentBill` for the commission the platform would have collected, due **5 days** after creation.
+
+**GET** `/api/providers/me/bills` — **PROVIDER** → `200` — every bill (any status), newest first, each including its `booking`.
+
+**POST** `/api/providers/me/bills/:billId/pay`:
+```json
+{ "method": "stripe", "paymentMethodId": "pm_card_visa" }
+```
+or
+```json
+{ "method": "balance" }
+```
+`"stripe"` charges the provider directly (same test PaymentMethod ids as customer payments); `"balance"` deducts the owed amount from the provider's own platform balance instead (fails with `409` if insufficient). Response `200`: the updated bill, `status: "PAID"`. If this was the provider's **last** unpaid/overdue bill, their account is automatically reactivated (see suspension below). Errors: `404` if not found/not yours; `409` if already paid or (for `"balance"`) insufficient funds.
+
+### The 5-day enforcement (real scheduled job)
+
+A `node-cron` job (`backend/src/jobs/offlineBillingCron.ts`) runs **once daily at midnight** server time: it finds every `PENDING` bill past its `dueAt`, marks it `OVERDUE`, and sets that provider's `User.status` to `SUSPENDED`.
+
+- **Suspended accounts cannot log in** (`POST /api/auth/login` → `403 { "error": "Your account has been suspended. Please contact support." }`).
+- Their **refresh token is deliberately left valid**, though — if the login block also revoked it, a provider with no other active session would have *no way back into the API at all*, not even to pay off the bill and get reinstated. So: a still-valid refresh token (from before suspension) can still be used at `POST /api/auth/refresh` to mint new access tokens, which can then hit `GET/POST /providers/me/bills` to settle up. Once *all* overdue bills are paid, the account flips back to `ACTIVE` automatically and login works again.
+- **Known limitation**: if a provider's refresh token had already expired (7 days) or been logged out *before* they got suspended, there is currently no API path back in — that would need a manual admin/support intervention, which isn't built.
 
 ---
 

@@ -2,9 +2,15 @@ import { Request, Response } from "express";
 import * as providerService from "./provider.service";
 import * as listingService from "../listing/listing.service";
 import * as availabilityService from "../availability/availability.service";
+import * as bookingService from "../booking/booking.service";
+import * as paymentService from "../payment/payment.service";
+import * as extraChargeService from "../extraCharge/extraCharge.service";
 import { createCertificationSchema, submitKycDocumentSchema, updateProviderProfileSchema } from "./provider.schemas";
 import { createListingSchema, recommendCategorySchema, updateListingSchema } from "../listing/listing.schemas";
 import { createSlotSchema, updateSlotSchema } from "../availability/availability.schemas";
+import { cancelBookingSchema } from "../booking/booking.schemas";
+import { payBillSchema, withdrawSchema } from "../payment/payment.schemas";
+import { createExtraChargeSchema } from "../extraCharge/extraCharge.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await providerService.getMyProfile(req.user!.sub);
@@ -102,4 +108,78 @@ export async function updateMyAvailabilitySlotHandler(req: Request, res: Respons
 export async function deleteMyAvailabilitySlotHandler(req: Request, res: Response) {
   await availabilityService.deleteSlot(req.user!.sub, req.params.slotId);
   res.status(204).send();
+}
+
+export async function listMyBookingsHandler(req: Request, res: Response) {
+  const bookings = await bookingService.listProviderBookings(req.user!.sub);
+  res.status(200).json(bookings);
+}
+
+export async function getMyBookingHandler(req: Request, res: Response) {
+  const booking = await bookingService.getProviderBooking(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function acceptBookingHandler(req: Request, res: Response) {
+  const booking = await bookingService.acceptBooking(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function declineBookingHandler(req: Request, res: Response) {
+  const booking = await bookingService.declineBooking(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function startBookingHandler(req: Request, res: Response) {
+  const booking = await bookingService.startBooking(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function completeBookingHandler(req: Request, res: Response) {
+  const booking = await bookingService.completeBooking(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
+}
+
+export async function cancelMyBookingHandler(req: Request, res: Response) {
+  const input = cancelBookingSchema.parse(req.body);
+  const booking = await bookingService.cancelBookingAsProvider(req.user!.sub, req.params.bookingId, input);
+  res.status(200).json(booking);
+}
+
+export async function listMyPaymentsHandler(req: Request, res: Response) {
+  const payments = await paymentService.listProviderPayments(req.user!.sub);
+  res.status(200).json(payments);
+}
+
+export async function requestExtraChargeHandler(req: Request, res: Response) {
+  const input = createExtraChargeSchema.parse(req.body);
+  const charge = await extraChargeService.requestExtraCharge(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(charge);
+}
+
+export async function getMyBalanceHandler(req: Request, res: Response) {
+  const balance = await paymentService.getProviderBalance(req.user!.sub);
+  res.status(200).json(balance);
+}
+
+export async function withdrawBalanceHandler(req: Request, res: Response) {
+  const input = withdrawSchema.parse(req.body);
+  const withdrawal = await paymentService.withdrawBalance(req.user!.sub, input);
+  res.status(201).json(withdrawal);
+}
+
+export async function listMyWithdrawalsHandler(req: Request, res: Response) {
+  const withdrawals = await paymentService.listWithdrawals(req.user!.sub);
+  res.status(200).json(withdrawals);
+}
+
+export async function listMyBillsHandler(req: Request, res: Response) {
+  const bills = await paymentService.listProviderBills(req.user!.sub);
+  res.status(200).json(bills);
+}
+
+export async function payMyBillHandler(req: Request, res: Response) {
+  const input = payBillSchema.parse(req.body);
+  const bill = await paymentService.payBill(req.user!.sub, req.params.billId, input);
+  res.status(200).json(bill);
 }
