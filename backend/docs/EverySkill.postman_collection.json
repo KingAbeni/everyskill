@@ -1726,6 +1726,31 @@
           }
         },
         {
+          "name": "Get My Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "dashboard"
+              ]
+            }
+          },
+          "description": "FR22. Aggregates profile, services (listings), schedule (availability), recent bookings + counts by status, earnings (balance/recent payments/withdrawals/pending bills), analytics (booking counts + rating), reviews, certifications, verification status + KYC docs, recent messages, unread notification count."
+        },
+        {
           "name": "Update My Profile",
           "request": {
             "method": "PATCH",

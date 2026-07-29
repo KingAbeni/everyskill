@@ -8,6 +8,7 @@ export const providerRouter = Router();
 providerRouter.use(requireAuth, requireRole("PROVIDER"));
 
 providerRouter.get("/me", asyncHandler(providerController.getProfileHandler));
+providerRouter.get("/me/dashboard", asyncHandler(providerController.getDashboardHandler));
 providerRouter.patch("/me", asyncHandler(providerController.updateProfileHandler));
 
 providerRouter.get("/me/certifications", asyncHandler(providerController.listCertificationsHandler));

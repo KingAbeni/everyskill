@@ -35,6 +35,11 @@ export async function getProfileHandler(req: Request, res: Response) {
   res.status(200).json(profile);
 }
 
+export async function getDashboardHandler(req: Request, res: Response) {
+  const dashboard = await providerService.getDashboard(req.user!.sub);
+  res.status(200).json(dashboard);
+}
+
 export async function updateProfileHandler(req: Request, res: Response) {
   const input = updateProviderProfileSchema.parse(req.body);
   const profile = await providerService.updateMyProfile(req.user!.sub, input);

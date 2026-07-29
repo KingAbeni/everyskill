@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -416,6 +416,40 @@ All routes below require `Authorization: Bearer <accessToken>` for a **PROVIDER*
 `profileImage`, `coverImage`, `website`, and each entry in `galleryImages` must be valid URLs. `socialLinks`, `portfolioLinks`, and `operatingHours` accept any JSON object shape. `latitude`/`longitude` (decimal degrees) are used for distance-based search (FR9) — set them here to make this provider findable by `GET /api/listings?latitude=...&longitude=...&radiusKm=...`. Response `200`: the updated `ProviderProfile` row.
 
 `firstName`/`lastName` are the provider's own personal name (relevant for `INDIVIDUAL` providers). `directorFirstName`/`directorLastName`/`directorContactInfo` are the business's director/representative name and contact (relevant for `BUSINESS` providers — this is the same "representative identity" the SRS mentions under provider KYC, FR4). None of these are required or restricted by `providerType` at the API level — any provider can set any of them.
+
+### Dashboard (FR22)
+
+**GET** `/api/providers/me/dashboard` → `200` — one aggregation over the SRS's eight bullets (Profile, Services, Schedule, Bookings, Earnings, Analytics, Reviews, Manage certificates, Verification status), each of which already has its own dedicated endpoint except Analytics:
+```json
+{
+  "profile": { "...": "same shape as GET /api/providers/me" },
+  "services": ["...all your listings, same as GET /me/listings"],
+  "schedule": ["...all your availability slots, same as GET /me/availability"],
+  "bookings": {
+    "recent": ["...5 most recent bookings"],
+    "countsByStatus": { "COMPLETED": 12, "REQUESTED": 2 }
+  },
+  "earnings": {
+    "balance": { "...": "same as GET /me/balance" },
+    "recentPayments": ["...5 most recent"],
+    "recentWithdrawals": ["...5 most recent"],
+    "pendingBillsCount": 0
+  },
+  "analytics": {
+    "totalBookings": 14,
+    "completedBookings": 12,
+    "cancelledBookings": 1,
+    "averageRating": 4.5,
+    "reviewCount": 8
+  },
+  "reviews": ["...all reviews about you, same as GET /me/reviews"],
+  "certifications": ["...all, same as GET /me/certifications"],
+  "verification": { "status": "VERIFIED", "kycDocuments": ["...all, same as GET /me/kyc"] },
+  "recentMessages": ["...up to 10 rows, one per booking conversation, newest first"],
+  "unreadNotificationCount": 3
+}
+```
+`bookings.recent`/`earnings.recentPayments`/`earnings.recentWithdrawals` are capped to the 5 most recent (a dashboard glance, not a data dump — same choice made for FR21); `services`/`schedule`/`reviews`/`certifications`/`kycDocuments` are returned in full since they're typically short lists. `analytics` is deliberately simple derived counts, not FR25's territory — `averageRating`/`reviewCount` reuse the exact same aggregate FR16 computes for listing search (`getProviderRatingSummaries`), so there's no risk of the two ever disagreeing. `recentMessages` reuses the same cross-booking "recent activity" preview introduced for FR21 (no read/unread tracking — see FR21/FR14 for why).
 
 ### Certifications
 
