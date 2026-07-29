@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -240,6 +240,25 @@ All routes below require `Authorization: Bearer <accessToken>` for a **CUSTOMER*
 }
 ```
 `lateCancellationCount`/`noShowCount` are your FR13 "standing" — see **Cancellation & Dispute Resolution (FR13)** further down.
+
+### Dashboard (FR21)
+
+**GET** `/api/customers/me/dashboard` → `200` — a single aggregation over data that each already has its own dedicated endpoint:
+```json
+{
+  "profile": { "...": "same shape as GET /api/customers/me" },
+  "bookings": {
+    "recent": ["...5 most recent bookings, same shape as GET /me/bookings"],
+    "countsByStatus": { "COMPLETED": 8, "REQUESTED": 1 }
+  },
+  "payments": { "recent": ["...5 most recent payments"] },
+  "favorites": ["...all favorited providers"],
+  "reviews": ["...all reviews you've written"],
+  "recentMessages": ["...up to 10 rows, one per booking conversation, newest first"],
+  "unreadNotificationCount": 3
+}
+```
+`bookings.recent`/`payments.recent` are capped to the 5 most recent (a dashboard glance, not a data dump); `favorites`/`reviews` are returned in full since they're typically short lists already. `recentMessages` is a new aggregation — there's no unified inbox elsewhere in this app, so this is the single most recent message from each booking conversation the customer participates in, newest first. Since `Message` has no read/unread tracking (a documented FR14 limitation), this is "recent activity," not an unread count. `unreadNotificationCount` reuses FR15's existing count.
 
 **PATCH** `/api/customers/me` — any subset of:
 ```json

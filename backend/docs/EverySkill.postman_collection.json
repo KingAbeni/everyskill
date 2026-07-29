@@ -551,6 +551,31 @@
           }
         },
         {
+          "name": "Get My Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "dashboard"
+              ]
+            }
+          },
+          "description": "FR21. Aggregates profile, recent bookings (+ counts by status), recent payments, favorites, reviews, recent messages (one per conversation), and unread notification count."
+        },
+        {
           "name": "Update My Profile",
           "request": {
             "method": "PATCH",

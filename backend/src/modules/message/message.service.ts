@@ -87,3 +87,42 @@ export async function sendMessageAsProvider(userId: string, bookingId: string, i
   await notify(recipientUserId, NotificationType.MESSAGE_RECEIVED, input.content?.slice(0, 140) ?? "Sent an image", bookingId);
   return message;
 }
+
+/**
+ * FR21/FR22 dashboards — one preview row per conversation the user participates in (via their
+ * bookings), newest message first. There's no isRead tracking on Message (documented FR14
+ * limitation), so this is "recent activity", not an unread inbox.
+ */
+async function listRecentMessagesForBookingFilter(bookingFilter: Record<string, unknown>, limit: number) {
+  const latestPerConversation = await prisma.message.groupBy({
+    by: ["conversationId"],
+    where: { conversation: { booking: bookingFilter } },
+    _max: { createdAt: true },
+  });
+  if (latestPerConversation.length === 0) {
+    return [];
+  }
+  return prisma.message.findMany({
+    where: {
+      OR: latestPerConversation
+        .filter((g) => g._max.createdAt !== null)
+        .map((g) => ({ conversationId: g.conversationId, createdAt: g._max.createdAt! })),
+    },
+    include: {
+      sender: { select: messageSenderSelect },
+      conversation: { include: { booking: { include: { listing: true } } } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+}
+
+export async function listRecentMessagesForCustomer(userId: string, limit = 10) {
+  const profile = await getCustomerProfileOrThrow(userId);
+  return listRecentMessagesForBookingFilter({ customerId: profile.id }, limit);
+}
+
+export async function listRecentMessagesForProvider(userId: string, limit = 10) {
+  const profile = await getProviderProfileOrThrow(userId);
+  return listRecentMessagesForBookingFilter({ providerProfileId: profile.id }, limit);
+}

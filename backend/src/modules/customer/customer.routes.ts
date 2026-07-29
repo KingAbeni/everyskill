@@ -8,6 +8,7 @@ export const customerRouter = Router();
 customerRouter.use(requireAuth, requireRole("CUSTOMER"));
 
 customerRouter.get("/me", asyncHandler(customerController.getProfileHandler));
+customerRouter.get("/me/dashboard", asyncHandler(customerController.getDashboardHandler));
 customerRouter.patch("/me", asyncHandler(customerController.updateProfileHandler));
 customerRouter.delete("/me", asyncHandler(customerController.deleteAccountHandler));
 customerRouter.get("/me/export", asyncHandler(customerController.exportDataHandler));

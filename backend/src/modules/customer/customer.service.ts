@@ -9,6 +9,11 @@ import {
   updateProfileSchema,
 } from "./customer.schemas";
 import { z } from "zod";
+import * as reviewService from "../review/review.service";
+import * as messageService from "../message/message.service";
+import * as notificationService from "../notification/notification.service";
+
+const DASHBOARD_RECENT_LIMIT = 5;
 
 type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 type CreateAddressInput = z.infer<typeof createAddressSchema>;
@@ -183,6 +188,60 @@ export async function exportMyData(userId: string) {
     bookings,
     payments,
     reviews,
+  };
+}
+
+/**
+ * FR21 — a single aggregation endpoint over data that already has its own dedicated "list mine"
+ * endpoint (bookings/payments/favorites/reviews/profile). Bookings/payments are capped to the
+ * most recent few (a dashboard glance, not a data dump — per direct request); favorites/reviews
+ * are returned in full since they're typically short lists already. Messages have no unified
+ * inbox anywhere in this app, so this introduces one: the single most recent message per booking
+ * conversation, newest first (see message.service.ts's listRecentMessagesForCustomer).
+ */
+export async function getDashboard(userId: string) {
+  const profile = await getProfileOrThrow(userId);
+
+  const [profileSummary, recentBookings, bookingStatusCounts, recentPayments, favorites, reviews, recentMessages, unread] =
+    await Promise.all([
+      getMyProfile(userId),
+      prisma.booking.findMany({
+        where: { customerId: profile.id },
+        include: { listing: true, providerProfile: true, payment: true },
+        orderBy: { createdAt: "desc" },
+        take: DASHBOARD_RECENT_LIMIT,
+      }),
+      prisma.booking.groupBy({
+        by: ["status"],
+        where: { customerId: profile.id },
+        _count: { status: true },
+      }),
+      prisma.payment.findMany({
+        where: { booking: { customerId: profile.id } },
+        include: { booking: true },
+        orderBy: { createdAt: "desc" },
+        take: DASHBOARD_RECENT_LIMIT,
+      }),
+      prisma.favoriteProvider.findMany({
+        where: { customerProfileId: profile.id },
+        include: { providerProfile: true },
+      }),
+      reviewService.listMyReviewsAsCustomer(userId),
+      messageService.listRecentMessagesForCustomer(userId),
+      notificationService.getUnreadCount(userId),
+    ]);
+
+  return {
+    profile: profileSummary,
+    bookings: {
+      recent: recentBookings,
+      countsByStatus: Object.fromEntries(bookingStatusCounts.map((row) => [row.status, row._count.status])),
+    },
+    payments: { recent: recentPayments },
+    favorites,
+    reviews,
+    recentMessages,
+    unreadNotificationCount: unread.unreadCount,
   };
 }
 
