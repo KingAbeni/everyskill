@@ -6,6 +6,8 @@ import { z } from "zod";
 import { cancelBookingSchema, createBookingSchema } from "./booking.schemas";
 import * as availabilityService from "../availability/availability.service";
 import * as paymentService from "../payment/payment.service";
+import { notify, NotificationType } from "../notification/notification.service";
+import { assertCompletionDocumentationExists } from "../documentation/documentation.service";
 
 type CreateBookingInput = z.infer<typeof createBookingSchema>;
 type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
@@ -121,6 +123,13 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
     prisma.conversation.create({ data: { bookingId } }),
   ]);
 
+  await notify(
+    booking.providerProfile.userId,
+    NotificationType.BOOKING_REQUESTED,
+    `New booking request for "${booking.listing.title}"`,
+    booking.id,
+  );
+
   return booking;
 }
 
@@ -226,6 +235,11 @@ async function recordViolation(role: "CUSTOMER" | "PROVIDER", profileId: string,
     });
     if (updated.lateCancellationCount + updated.noShowCount >= VIOLATION_SUSPENSION_THRESHOLD) {
       await prisma.user.update({ where: { id: updated.userId }, data: { status: "SUSPENDED" } });
+      await notify(
+        updated.userId,
+        NotificationType.ACCOUNT_SUSPENDED,
+        "Your account has been suspended due to repeated late cancellations/no-shows. Contact support to appeal.",
+      );
     }
   } else {
     const updated = await prisma.providerProfile.update({
@@ -234,6 +248,11 @@ async function recordViolation(role: "CUSTOMER" | "PROVIDER", profileId: string,
     });
     if (updated.lateCancellationCount + updated.noShowCount >= VIOLATION_SUSPENSION_THRESHOLD) {
       await prisma.user.update({ where: { id: updated.userId }, data: { status: "SUSPENDED" } });
+      await notify(
+        updated.userId,
+        NotificationType.ACCOUNT_SUSPENDED,
+        "Your account has been suspended due to repeated late cancellations/no-shows. Contact support to appeal.",
+      );
     }
   }
 }
@@ -246,25 +265,56 @@ function isLateCancellation(booking: { scheduledAt: Date; listing: { cancellatio
 export async function acceptBooking(userId: string, bookingId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
-  return transition(bookingId, booking.status, userId, "ACCEPTED");
+  const updated = await transition(bookingId, booking.status, userId, "ACCEPTED");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_ACCEPTED,
+    `Your booking for "${updated.listing.title}" was accepted`,
+    bookingId,
+  );
+  return updated;
 }
 
 export async function declineBooking(userId: string, bookingId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
-  return transition(bookingId, booking.status, userId, "DECLINED");
+  const updated = await transition(bookingId, booking.status, userId, "DECLINED");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_DECLINED,
+    `Your booking for "${updated.listing.title}" was declined`,
+    bookingId,
+  );
+  return updated;
 }
 
 export async function startBooking(userId: string, bookingId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
-  return transition(bookingId, booking.status, userId, "IN_PROGRESS");
+  const updated = await transition(bookingId, booking.status, userId, "IN_PROGRESS");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_STARTED,
+    `Your booking for "${updated.listing.title}" has started`,
+    bookingId,
+  );
+  return updated;
 }
 
 export async function completeBooking(userId: string, bookingId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
-  return transition(bookingId, booking.status, userId, "COMPLETED");
+  if (booking.listing.requiresDocumentation) {
+    await assertCompletionDocumentationExists(bookingId);
+  }
+  const updated = await transition(bookingId, booking.status, userId, "COMPLETED");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_COMPLETED,
+    `Your booking for "${updated.listing.title}" is complete. Leave a review!`,
+    bookingId,
+  );
+  return updated;
 }
 
 export async function cancelBookingAsProvider(userId: string, bookingId: string, input: CancelBookingInput) {
@@ -277,6 +327,12 @@ export async function cancelBookingAsProvider(userId: string, bookingId: string,
   if (wasCommitted && isLateCancellation(booking)) {
     await recordViolation("PROVIDER", profile.id, "lateCancellation");
   }
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_CANCELLED,
+    `The provider cancelled your booking for "${updated.listing.title}"`,
+    bookingId,
+  );
   return updated;
 }
 
@@ -290,6 +346,12 @@ export async function cancelBookingAsCustomer(userId: string, bookingId: string,
   if (wasCommitted && isLateCancellation(booking)) {
     await recordViolation("CUSTOMER", profile.id, "lateCancellation");
   }
+  await notify(
+    updated.providerProfile.userId,
+    NotificationType.BOOKING_CANCELLED,
+    `The customer cancelled the booking for "${updated.listing.title}"`,
+    bookingId,
+  );
   return updated;
 }
 
@@ -307,6 +369,12 @@ export async function markCustomerNoShow(userId: string, bookingId: string) {
     noShowBy: "CUSTOMER",
   });
   await recordViolation("CUSTOMER", booking.customerId, "noShow");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_NO_SHOW,
+    `You were marked as a no-show for "${updated.listing.title}"`,
+    bookingId,
+  );
   return updated;
 }
 
@@ -324,6 +392,12 @@ export async function markProviderNoShow(userId: string, bookingId: string) {
     noShowBy: "PROVIDER",
   });
   await recordViolation("PROVIDER", booking.providerProfileId, "noShow");
+  await notify(
+    updated.providerProfile.userId,
+    NotificationType.BOOKING_NO_SHOW,
+    `You were marked as a no-show for "${updated.listing.title}"`,
+    bookingId,
+  );
   return updated;
 }
 

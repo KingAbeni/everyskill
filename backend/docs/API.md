@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -598,10 +598,11 @@ Backed by [Groq](https://console.groq.com)'s free-tier OpenAI-compatible API (`G
   "images": ["https://example.com/listing1.jpg"],
   "serviceArea": "Greater London",
   "tags": ["plumbing", "emergency"],
-  "cancellationCutoffHours": 24
+  "cancellationCutoffHours": 24,
+  "requiresDocumentation": true
 }
 ```
-`categoryIds` (non-empty array), `title`, `description`, `price`, `durationMinutes` required. `pricingType` is `"FIXED"` (price for the whole task) or `"HOURLY"` (price per hour) — defaults to `"FIXED"` if omitted. `price` means "total price for the task" under `FIXED`, or "rate per hour" under `HOURLY`; `durationMinutes` is always the estimated/scheduled duration (used for booking slots either way). `images`, `tags` default to `[]`; `cancellationCutoffHours` defaults to `24` (see FR13 — this is the cutoff, relative to the booking time, after which a customer cancellation or no-show gets recorded against the responsible party). Response `201`, with the created listing's `categories` array populated. Errors: `404 { "error": "One or more categories not found" }`.
+`categoryIds` (non-empty array), `title`, `description`, `price`, `durationMinutes` required. `pricingType` is `"FIXED"` (price for the whole task) or `"HOURLY"` (price per hour) — defaults to `"FIXED"` if omitted. `price` means "total price for the task" under `FIXED`, or "rate per hour" under `HOURLY`; `durationMinutes` is always the estimated/scheduled duration (used for booking slots either way). `images`, `tags` default to `[]`; `cancellationCutoffHours` defaults to `24` (see FR13 — this is the cutoff, relative to the booking time, after which a customer cancellation or no-show gets recorded against the responsible party). `requiresDocumentation` defaults to `true` — set it to `false` for service types with nothing visual to document (e.g. a delivery service), to exempt this listing's bookings from FR17's completion/after-image requirement (see **Service Documentation (FR17)** below). Response `201`, with the created listing's `categories` array populated. Errors: `404 { "error": "One or more categories not found" }`.
 
 ### Update a listing
 
@@ -610,6 +611,30 @@ Backed by [Groq](https://console.groq.com)'s free-tier OpenAI-compatible API (`G
 ### Delete a listing
 
 **DELETE** `/api/providers/me/listings/:listingId` → `204`. Errors: `404 { "error": "Listing not found" }`.
+
+### AI content assistance (FR19)
+
+All three below are provider-only, operate on one of your own listings, and are purely advisory — none of them modify the listing; you decide whether to act on the suggestion via the ordinary `PATCH` above.
+
+**GET** `/api/providers/me/listings/:listingId/completeness` → `200`:
+```json
+{ "isComplete": false, "missing": ["No images uploaded", "Description is very short (under 40 characters)"] }
+```
+Deterministic (no AI call, no hallucination risk, instant) — checks for missing images, a description under 40 characters, no tags, and no `serviceArea`.
+
+**POST** `/api/providers/me/listings/:listingId/improve-description` → `200`:
+```json
+{ "improvedDescription": "...", "reasoning": "..." }
+```
+Sends your current `title`/`description` to Groq and asks for a clearer, more compelling rewrite that stays truthful to the original (never invents claims/credentials).
+
+**POST** `/api/providers/me/listings/:listingId/suggest-keywords` → `200`:
+```json
+{ "keywords": ["plumber", "emergency plumbing", "leak repair"], "reasoning": "..." }
+```
+Suggests 3–8 search keywords based on your `title`/`description`/categories — a starting point for the listing's `tags`.
+
+Errors for all three: `404` for unknown/not-yours listing; the improve-description/suggest-keywords endpoints can also return the same `500`/`502` Groq errors as FR7's category recommendation above.
 
 ---
 
@@ -631,6 +656,7 @@ Optional query params, all combinable:
 | `location` | Location | Case-insensitive substring match on the provider's `serviceArea` text |
 | `latitude`, `longitude`, `radiusKm` | Distance | All three required together (`400` otherwise). Filters to providers within `radiusKm` km (great-circle/Haversine distance) of the given point, adds a `distanceKm` field to each result, and **overrides the default sort to ascending distance**. Only providers who've set their own `latitude`/`longitude` (via `PATCH /api/providers/me`) are considered. |
 | `verified` | Verification | `true` → only providers with `verificationStatus: "VERIFIED"` |
+| `minRating` | Rating | `1`–`5`. Only providers whose computed `averageRating` (FR16) is at least this. Providers with no reviews yet are excluded by any `minRating` filter. |
 | `providerType` | Provider Type | `"INDIVIDUAL"` or `"BUSINESS"` |
 | `availableDate` | Availability | ISO date (`YYYY-MM-DD`). Only providers with a declared open slot covering that date (recurring weekly or date-specific) **and no full-day block** (`isBlocked: true` with `startTime: "00:00"`/`endTime: "23:59"`) are included. Partial blocks (e.g. a lunch break) don't exclude a provider — this is a discovery-level check; exact time-slot conflicts are resolved at booking time (FR11). |
 | `providerProfileId` | — | Listings from one specific provider |
@@ -677,7 +703,7 @@ Response `200`:
 ```
 `matchReasons` is computed deterministically from the actual filter values (not a separate AI call per result) — this is the "explain recommendations" requirement, satisfied without extra latency/hallucination risk. If nothing in the category list clearly matches the query, `category` comes back `null` and the search runs unfiltered by category rather than guessing.
 
-**Current limitations** (documented honestly rather than silently no-op'd): ranking only orders by verification/recency/distance — semantic similarity, ratings, review count, response time, acceptance rate, and completed-jobs-based ranking are **not yet implemented**, since Reviews (FR16) don't exist yet to supply that data, and Bookings (FR11, now built) don't yet track response time/acceptance rate/completed-jobs counts. Once those exist, this endpoint's ranking will incorporate them.
+**Current limitations** (documented honestly rather than silently no-op'd): ranking still only *orders* by verification/recency/distance — rating (FR16) is now surfaced as a `minRating` filter and a "Highly rated" match reason (see **Ratings & Reviews (FR16)** below), but isn't yet a sort key. Semantic similarity, response time, acceptance rate, and completed-jobs-based ranking are still **not implemented**, since Bookings (FR11) don't yet track response time/acceptance rate/completed-jobs counts.
 
 Backed by [Groq](https://console.groq.com)'s free-tier API (`GROQ_API_KEY` in `.env`, same as FR7). Errors:
 | Status | Body | Cause |
@@ -798,7 +824,7 @@ Requires `Authorization: Bearer <accessToken>` for a **PROVIDER** account.
 
 **PATCH** `/api/providers/me/bookings/:bookingId/start` — no body → `ACCEPTED → IN_PROGRESS`. Response `200`.
 
-**PATCH** `/api/providers/me/bookings/:bookingId/complete` — no body → `IN_PROGRESS → COMPLETED`. Response `200`.
+**PATCH** `/api/providers/me/bookings/:bookingId/complete` — no body → `IN_PROGRESS → COMPLETED`. **Requires at least one `COMPLETION` and one `AFTER` service-documentation image to already exist for this booking** (FR17, see **Service Documentation (FR17)** below) — `409 { "error": "Cannot complete this booking — at least one completion image and one after image are required first" }` otherwise. This gate does **not** apply to a booking reaching `COMPLETED` via dispute resolution (`DISMISS`/`RELEASE_PROVIDER` — FR13) — an admin's override authority isn't blocked by missing proof-of-work photos. Response `200`.
 
 **PATCH** `/api/providers/me/bookings/:bookingId/cancel`:
 ```json
@@ -1062,6 +1088,201 @@ or, for an image attachment:
 Errors: `400 { "error": "Validation failed", ... }` if neither `content` nor `imageUrl` is provided, or `imageUrl` isn't a valid URL; `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours.
 
 **Not yet implemented** (documented honestly): real-time delivery (the SRS/tech-stack mentions Firebase Firestore or Socket.io for this) — messages are plain request/response REST, so a client has to poll `GET .../messages` for updates. Read receipts also aren't tracked (`Message` has no `isRead` field).
+
+---
+
+## Notifications (FR15)
+
+**Scope decision (per direct request):** the SRS lists four channels — In-app, Push, Email, SMS. Only **In-app** is implemented. There's no push/email/SMS provider wired up yet (that's FR28, not started), so every notification is created with `channel: "IN_APP"` and delivered purely by the client polling the endpoints below. `NotificationChannel` (`IN_APP | PUSH | EMAIL | SMS`) already exists on the `Notification` model for when those channels are added — no schema change will be needed, just a real sender behind each channel.
+
+There's no dedicated `/api/notifications` router — like Messaging/Disputes/Rescheduling, notifications are a shared concept exposed identically under both role prefixes, backed by one `notification.service.ts`. A user only ever sees their own notifications regardless of role.
+
+**GET** `/api/customers/me/notifications` or **GET** `/api/providers/me/notifications` → `200` — array of the caller's notifications, newest first. Optional query param `?unreadOnly=true` restricts to unread only.
+
+**GET** `.../me/notifications/unread-count` → `200` — `{ "unreadCount": number }`.
+
+**PATCH** `.../me/notifications/:notificationId/read` → `200` — marks a single notification read, returns the updated `Notification`. `404 { "error": "Notification not found" }` if it doesn't exist or belongs to someone else.
+
+**PATCH** `.../me/notifications/read-all` → `200` — `{ "updated": number }`, marks every one of the caller's unread notifications as read.
+
+Every `Notification` has: `type` (a free-text string, not a Prisma enum — new kinds can be added without a migration; see `NotificationType` in `notification.service.ts` for the full current list), `content` (human-readable text), `referenceId` (usually the related `bookingId`, `null` when there isn't one — e.g. `ACCOUNT_REACTIVATED`), `isRead`, `createdAt`.
+
+**Triggers wired up** (fire-and-forget calls into `notify()` from each owning module's service, the same cross-module pattern already used by Disputes calling into Booking/Payment):
+- **Bookings**: request created, accepted, declined, started, completed, cancelled (by either party), no-show (either party), account auto-suspended after 3 violations.
+- **Reschedule**: proposed (to the other party), responded (to the original requester).
+- **Messages**: every new message (to the conversation's other participant), content truncated to 140 chars (or "Sent an image" if image-only).
+- **Payments**: escrow received (stripe or offline), released on completion, refunded (plain cancellation or post-capture dispute refund), offline commission bill created.
+- **Extra Charges**: requested (to customer), approved/rejected (to provider).
+- **Disputes**: opened (to the other party), resolved (to both parties, with the outcome in the text).
+- **Verification**: KYC reviewed (approved/rejected, to the provider).
+- **Account**: reactivated by an admin; suspended by the offline-billing cron job; suspended/banned/warned via a moderation report (FR18).
+- **Reviews (FR16)**: posted (to the provider), replied (to the customer).
+- **Reports (FR18)**: filed (fans out to every `ADMIN`/`SUPER_ADMIN`).
+
+Recipients aren't limited to customers/providers — `ADMIN`/`SUPER_ADMIN` accounts receive notifications too (the `REPORT_FILED` fan-out above) and can read them via the identical four endpoints mounted under `/api/admin` (see **Reporting & Moderation (FR18)** below) — this was added alongside FR18 once it became the first thing that actually notifies an admin.
+
+**Not yet implemented / known limitations** (documented honestly): **Promotions (FR26)** notification kinds are absent — that module doesn't exist yet. No admin-facing "notification settings" management (the SRS's FR24 admin settings list mentions "Notifications" as a configurable item; that would be a separate settings/preferences feature and wasn't requested). No pruning/expiry — notifications accumulate indefinitely per user.
+
+---
+
+## Ratings & Reviews (FR16)
+
+A `Review` is created by a customer for one of their own **`COMPLETED`** bookings — `bookingId` is unique on the `Review` table, so a booking can only ever be reviewed once. **Reviews are immutable once posted** (per direct request) — there's no edit/delete endpoint, matching this codebase's pattern for other historical records (audit logs, status history, dispute resolutions).
+
+**POST** `/api/customers/me/bookings/:bookingId/review`:
+```json
+{ "rating": 5, "comment": "Excellent service!", "images": ["https://example.com/photo1.jpg"] }
+```
+`rating` is required, an integer `1`–`5`. `comment` and `images` are both optional (`images` must already be real URLs — upload first via `POST /api/uploads`, the generic public-upload endpoint). Response `201`: the created `Review`.
+
+Errors: `400 { "error": "Validation failed", ... }` if `rating` is missing or outside `1`–`5`; `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours; `409` if the booking isn't `COMPLETED` yet, or if it's already been reviewed.
+
+**GET** `/api/customers/me/reviews` → `200` — every review the caller has written, newest first, each including `booking` (with `listing`).
+
+**GET** `/api/providers/me/reviews` → `200` — every review written about the caller, newest first, each including `customer` (`{ firstName, lastName }` only — no email) and `booking` (with `listing`).
+
+**GET** `/api/listings/:listingId/reviews` — no auth required. Every review tied to a booking of that listing, newest first, each including `customer` (`{ firstName, lastName }`). `404 { "error": "Listing not found" }` if it doesn't exist or is inactive.
+
+### Provider reply
+
+Beyond the SRS's literal FR16 wording (customers rate/review/upload images), the `Review` model already carried a `providerReply` field, so a provider can reply once to a review on their own booking (added per direct request):
+
+**PATCH** `/api/providers/me/reviews/:reviewId/reply`:
+```json
+{ "reply": "Thanks for the feedback, we're working on it!" }
+```
+Response `200`: the updated `Review` with `providerReply`/`providerRepliedAt` set. Errors: `404 { "error": "Review not found" }` if it doesn't exist or isn't about one of your bookings; `409 { "error": "This review already has a reply" }` — like the review itself, a reply is a one-time, immutable action.
+
+### Rating aggregate in listing browsing/search (FR9 tie-in)
+
+Now that reviews exist, every `providerProfile` object embedded in `GET /api/listings`, `GET /api/listings/:listingId`, and `POST /api/listings/ai-search` results carries a computed `averageRating` (rounded to 1 decimal, `null` if the provider has no reviews yet) and `reviewCount`. This is computed fresh per request via a batched `groupBy` (no N+1 queries, no stored/cached column to go stale).
+
+A new `minRating` query param on `GET /api/listings` (and therefore also usable by AI search's underlying query) filters to providers whose `averageRating` is at least that value (`1`–`5`); providers with no reviews yet are excluded by any `minRating` filter. AI search's `matchReasons` now also includes `"Highly rated (X★ from N reviews)"` when a result's provider has `averageRating >= 4`.
+
+**Not yet implemented / known limitations** (documented honestly): rating still isn't used as a *sort* key (only as a filter and a match-reason flag) — the default sort stays newest-first (or distance, when searching by location). Review moderation/reporting is a separate feature (FR18) and doesn't exist yet.
+
+---
+
+## Service Documentation (FR17)
+
+Proof-of-work photos for a booking. The SRS's literal text is: customer before images, provider completion images, and *optional* after images. **Per direct request, "after" images were made mandatory too** — so completing a booking now requires both a `COMPLETION` and an `AFTER` image to already exist (see the completion gate on `PATCH .../bookings/:bookingId/complete` above). "Before" images are not gated on anything — the SRS never called them optional, but nothing in the booking lifecycle naturally blocks on them either, so they remain a customer-side courtesy rather than a hard requirement.
+
+**Per-listing opt-out**: some service types have nothing visual to document (e.g. a delivery service) — per direct follow-up request, `ServiceListing.requiresDocumentation` (default `true`, settable on create/update — see FR6 above) controls whether the completion gate applies at all. When `false`, `PATCH .../bookings/:bookingId/complete` skips the documentation check entirely for bookings of that listing — no `COMPLETION`/`AFTER` images are needed.
+
+Each `ServiceDocumentation` row is one image: `kind` (`"BEFORE" | "COMPLETION" | "AFTER"`), `imageUrl`, `uploadedById` (the `User.id` who added it), `createdAt`. Multiple images per kind are allowed (no uniqueness constraint) — the SRS says "images", plural.
+
+**POST** `/api/customers/me/bookings/:bookingId/documentation`:
+```json
+{ "imageUrl": "https://example.com/before.jpg" }
+```
+Always creates a `BEFORE`-kind row (customers can't submit any other kind). Booking must be `ACCEPTED` or `IN_PROGRESS` — `409` otherwise (a customer can't retroactively document a job that's already `COMPLETED`/`CANCELLED`, nor one that hasn't been accepted yet). `imageUrl` must already be a real URL — upload first via `POST /api/uploads`. Response `201`: the created `ServiceDocumentation`.
+
+**POST** `/api/providers/me/bookings/:bookingId/documentation`:
+```json
+{ "kind": "COMPLETION", "imageUrl": "https://example.com/completion.jpg" }
+```
+`kind` is `"COMPLETION"` or `"AFTER"` (providers can't submit `"BEFORE"`). Booking must be `IN_PROGRESS` — by construction, this means both required images have to be added *before* calling the `complete` action, not after. `409` otherwise. Response `201`.
+
+**GET** `/api/customers/me/bookings/:bookingId/documentation` or **GET** `/api/providers/me/bookings/:bookingId/documentation` → `200` — every documentation row for that booking (all kinds), oldest first. Both endpoints work identically once ownership is confirmed.
+
+All four endpoints: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours; `400 { "error": "Validation failed", ... }` for a missing/invalid `imageUrl` or an invalid `kind`.
+
+**Not yet implemented / known limitations** (documented honestly): no notification kind for documentation events (FR15's SRS-listed notification categories — Bookings/Messages/Payments/Reviews/Verification/Promotions/Disputes — don't include Documentation, so none was added, to avoid scope drift beyond FR15's defined list). No deletion/replacement of a submitted image.
+
+---
+
+## AI Image Analysis (FR20)
+
+Vision-based AI, distinct from every other AI feature in this backend (FR7, FR10, FR19) which sends **text only** to Groq. This uses a separate, vision-capable model (`GROQ_VISION_MODEL` in `.env`, defaults to `qwen/qwen3.6-27b` — override to whatever your account/tier supports; see the note below on model availability). All four capabilities are provider/customer-facing endpoints, not automatic, **except** suspicious-upload detection, which runs automatically (per direct request).
+
+### Category prediction from an image
+
+**POST** `/api/providers/me/listings/recommend-category-from-image`:
+```json
+{ "imageUrl": "https://example.com/job-photo.jpg" }
+```
+Visual counterpart to FR7's text-based `recommend-category` — same response shape (`category`, `confidence`, `reasoning`), same hallucination guard (the returned category id must be one of the real ones). Advisory only.
+
+### Detect service objects
+
+**POST** `/api/providers/me/listings/analyze-image`:
+```json
+{ "imageUrl": "https://example.com/job-photo.jpg" }
+```
+Response `200`: `{ "objects": ["pipe wrench", "ladder"], "description": "..." }`. Not tied to a specific listing — a general utility a provider can use on any image before deciding to attach it to a listing.
+
+### Compare before/after
+
+**POST** `/api/customers/me/bookings/:bookingId/documentation/compare` or **POST** `/api/providers/me/bookings/:bookingId/documentation/compare` — no body. Fetches that booking's earliest `BEFORE` and `AFTER` `ServiceDocumentation` rows (FR17) and asks the vision model whether the after photo plausibly shows real completed work at the same location/subject as the before photo. Response `200`:
+```json
+{ "verdict": "MATCH", "confidence": "high", "reasoning": "..." }
+```
+`verdict` is `"MATCH" | "MISMATCH" | "INCONCLUSIVE"`. Errors: `404` for unknown/not-yours booking; `409 { "error": "Both a BEFORE and an AFTER image are required to run a comparison" }` if either is missing yet (independent of whether the listing even `requiresDocumentation` — you can still run this once both images happen to exist).
+
+### Detect suspicious uploads (automatic)
+
+**Per direct request, this runs automatically** — not as an on-demand endpoint — whenever a new image is submitted via: `POST /api/providers/me/listings` / `PATCH .../listings/:listingId` (new images only, diffed against the previous set), `POST .../bookings/:bookingId/review` (FR16), or either documentation-submission endpoint (FR17). Each new image is sent to the vision model asking whether it looks fake, stolen/stock, or unrelated to any plausible home service. If flagged, a `Report` (FR18) is auto-filed with `targetType` matching the source (`LISTING`, `REVIEW`, or `DOCUMENTATION`), `reason: "INAPPROPRIATE_CONTENT"`, and **`reporterId: null`** (a system-filed report — see FR18's schema note), then every admin gets the usual `REPORT_FILED` notification.
+
+This check is **best-effort and never blocks the underlying action**: if the vision call fails (bad model id, Groq outage, rate limit) the error is swallowed and the listing/review/documentation submission still succeeds normally — moderation coverage degrades gracefully rather than breaking the app. Admins action these system-filed reports exactly like user-filed ones (`WARN`/`SUSPEND`/`BAN`/`DISMISS` — see FR18); the action still resolves to the correct underlying user (the listing's provider, the review's author, or the documentation's uploader).
+
+**Known limitations / practical notes** (documented honestly):
+- **Model availability is external and account-dependent.** During development, the initially-guessed default vision model and two other well-known Groq vision model ids were all decommissioned/inaccessible on the test account — only `qwen/qwen3.6-27b` worked. There is no guarantee any specific model id stays available; if `GROQ_VISION_MODEL` stops working, every FR20 endpoint (and the automatic upload scan) starts returning/logging `502`-style "AI service unavailable" errors until it's repointed at a working model.
+- **Image URLs must be fetchable by Groq's servers.** Some hosts (e.g. `upload.wikimedia.org`) return `403` to Groq's server-side image fetcher (bot/hotlink protection) even though the same URL loads fine in a browser — this isn't specific to this app, it's inherent to any `image_url`-based vision API call. Images uploaded via this app's own `POST /api/uploads` (Supabase Storage, public bucket) don't have this problem.
+- Vision calls are noticeably slower and more rate-limited than the text-only calls elsewhere in this backend — the automatic upload scan adds real latency to listing/review/documentation submission (one Groq round-trip per new image).
+
+---
+
+## Reporting & Moderation (FR18)
+
+Any authenticated user (customer **or** provider — reporting is bidirectional, per direct request) can file a report against a `USER`, `REVIEW`, `MESSAGE`, `LISTING`, or `DOCUMENTATION` (the last added alongside FR20's automatic flagging, below). Unlike Messaging/Disputes/Reschedule/Reviews/Documentation (all booking-scoped, exposed only via the customer/provider routers), a report isn't tied to a booking or a role, so this is the first module with its own genuinely role-agnostic top-level router — `/api/reports`, gated by `requireAuth` only (any role).
+
+**POST** `/api/reports`:
+```json
+{
+  "targetType": "USER",
+  "targetId": "provider-or-customer-user-uuid",
+  "reason": "SCAM_PROVIDER",
+  "description": "Took payment offline and never showed up",
+  "images": ["https://example.com/evidence.jpg"]
+}
+```
+`targetType` is one of `"USER" | "REVIEW" | "MESSAGE" | "LISTING" | "DOCUMENTATION"`. `targetId` must reference a real row of that type — checked before creating the report (`404` otherwise). `reason` is one of the SRS's seven categories: `POOR_QUALITY | FRAUD | INAPPROPRIATE_BEHAVIOUR | FAKE_REVIEW | OFFENSIVE_MESSAGE | SCAM_PROVIDER | INAPPROPRIATE_CONTENT`. `description` and `images` are both optional. Response `201`: the created `Report` (`status: "PENDING"`). Filing a report notifies **every** `ADMIN`/`SUPER_ADMIN` (`REPORT_FILED`, FR15) — there's a moderation queue, but this pushes awareness immediately rather than relying on admins to poll it.
+
+`reporterId` is **nullable** — a human-filed report always has one, but FR20's automatic suspicious-upload detection also files reports through this same table with `reporterId: null` (no human reporter). There's no separate "source" field — a `null` `reporterId` in the response **is** the tell that a report was system-filed rather than human-filed.
+
+**GET** `/api/reports/mine` → `200` — every report the caller has filed, newest first.
+
+### Admin moderation queue
+
+**GET** `/api/admin/reports` — optional `?status=PENDING|REVIEWED|ACTIONED|DISMISSED`. Response `200`: matching reports, oldest first (oldest-first here, unlike most other admin lists, so the queue naturally works FIFO).
+
+**GET** `/api/admin/reports/:reportId` → `200`, or `404` if it doesn't exist.
+
+**PATCH** `/api/admin/reports/:reportId/review` — no body. `PENDING → REVIEWED`. `409` if not currently `PENDING`. This step is optional — an admin can go straight to `.../action` from `PENDING` too.
+
+**PATCH** `/api/admin/reports/:reportId/action`:
+```json
+{ "action": "WARN", "resolutionNote": "First warning for reported scam behavior" }
+```
+`action` is one of `"WARN" | "SUSPEND" | "BAN" | "DISMISS"`. `resolutionNote` is optional freeform text (used as the notification content sent to the affected user, when applicable). `409` if the report has already been `ACTIONED`/`DISMISSED`.
+
+For a non-`USER` target (`REVIEW`/`MESSAGE`/`LISTING`), the action resolves to and applies against the **underlying user** — a reported `Review`'s author, a reported `Message`'s sender, or a reported `Listing`'s owning provider — not the report's `targetId` directly. `409 { "error": "Cannot action this report — its target no longer exists" }` if that underlying target has since been deleted (WARN/SUSPEND/BAN only — `DISMISS` never needs to resolve a target).
+
+What each action does:
+| Action | Effect | Status → | Notification |
+|---|---|---|---|
+| `WARN` | Increments the target `User.warningCount` (new field, no automatic consequence yet — see limitations) | `ACTIONED` | `WARNING_ISSUED` |
+| `SUSPEND` | `User.status → SUSPENDED` (same login-blocking behavior as FR12/FR13's suspensions; reversible via the existing `PATCH /api/admin/users/:userId/reactivate` from FR13) | `ACTIONED` | `ACCOUNT_SUSPENDED` |
+| `BAN` | `User.status → BANNED` (blocks login with a **"banned"**-specific message — a real pre-existing bug was fixed here: `auth.service.ts` previously said "suspended" even for banned accounts) | `ACTIONED` | `ACCOUNT_BANNED` |
+| `DISMISS` | No change to the target user at all | `DISMISSED` | none |
+
+Every WARN/SUSPEND/BAN action also writes an `AuditLog` entry (`action: "REPORT_WARN" | "REPORT_SUSPEND" | "REPORT_BAN"`), same pattern as KYC review/admin management/reactivation.
+
+### Admin notifications (FR15 gap fix)
+
+Filing a report notifies all admins (see above) — but until this FR, `ADMIN`/`SUPER_ADMIN` had **no way to read their own notifications at all** (only the customer/provider routers exposed `.../me/notifications*`). Fixed by adding the identical four endpoints under `/api/admin`: `GET /api/admin/notifications`, `GET /api/admin/notifications/unread-count`, `PATCH /api/admin/notifications/read-all`, `PATCH /api/admin/notifications/:notificationId/read`.
+
+**Not yet implemented / known limitations** (documented honestly): `warningCount` has no automatic consequence (unlike FR13's violation counter, which auto-suspends at 3) — an admin has to eyeball it and decide when to escalate to `SUSPEND`/`BAN` themselves. `BAN` has no dedicated unban endpoint — `PATCH /api/admin/users/:userId/reactivate` only lifts `SUSPENDED` (`409` on a `BANNED` account), so unbanning currently requires a direct DB update; this is intentional (a ban is meant to be a heavier, less casually-reversed action than a suspension) but worth knowing.
 
 ---
 

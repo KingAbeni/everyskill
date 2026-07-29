@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import * as adminService from "./admin.service";
 import * as platformService from "../platform/platform.service";
 import * as disputeService from "../dispute/dispute.service";
+import * as reportService from "../report/report.service";
+import * as notificationService from "../notification/notification.service";
 import {
   createAdminSchema,
   forceResetAdminPasswordSchema,
@@ -10,6 +12,8 @@ import {
   updatePlatformSettingsSchema,
 } from "./admin.schemas";
 import { listDisputesQuerySchema, resolveDisputeSchema } from "../dispute/dispute.schemas";
+import { actionReportSchema, listReportsQuerySchema } from "../report/report.schemas";
+import { listNotificationsQuerySchema } from "../notification/notification.schemas";
 
 export async function listKycRequestsHandler(req: Request, res: Response) {
   const query = listKycQuerySchema.parse(req.query);
@@ -81,4 +85,47 @@ export async function resolveDisputeHandler(req: Request, res: Response) {
   const input = resolveDisputeSchema.parse(req.body);
   const dispute = await disputeService.resolveDispute(req.user!.sub, req.params.disputeId, input);
   res.status(200).json(dispute);
+}
+
+export async function listReportsHandler(req: Request, res: Response) {
+  const query = listReportsQuerySchema.parse(req.query);
+  const reports = await reportService.listReports(query);
+  res.status(200).json(reports);
+}
+
+export async function getReportHandler(req: Request, res: Response) {
+  const report = await reportService.getReport(req.params.reportId);
+  res.status(200).json(report);
+}
+
+export async function markReportReviewedHandler(req: Request, res: Response) {
+  const report = await reportService.markReportReviewed(req.user!.sub, req.params.reportId);
+  res.status(200).json(report);
+}
+
+export async function actionReportHandler(req: Request, res: Response) {
+  const input = actionReportSchema.parse(req.body);
+  const report = await reportService.actionReport(req.user!.sub, req.params.reportId, input);
+  res.status(200).json(report);
+}
+
+export async function listNotificationsHandler(req: Request, res: Response) {
+  const query = listNotificationsQuerySchema.parse(req.query);
+  const notifications = await notificationService.listMyNotifications(req.user!.sub, query);
+  res.status(200).json(notifications);
+}
+
+export async function getNotificationsUnreadCountHandler(req: Request, res: Response) {
+  const result = await notificationService.getUnreadCount(req.user!.sub);
+  res.status(200).json(result);
+}
+
+export async function markNotificationReadHandler(req: Request, res: Response) {
+  const notification = await notificationService.markAsRead(req.user!.sub, req.params.notificationId);
+  res.status(200).json(notification);
+}
+
+export async function markAllNotificationsReadHandler(req: Request, res: Response) {
+  const result = await notificationService.markAllAsRead(req.user!.sub);
+  res.status(200).json(result);
 }

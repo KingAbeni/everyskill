@@ -4,6 +4,7 @@ import { AppError } from "../../utils/AppError";
 import { z } from "zod";
 import { createExtraChargeSchema, payExtraChargeSchema, respondExtraChargeSchema } from "./extraCharge.schemas";
 import { calculateCommission, createOfflineBill, creditProviderBalance, getStripeClient } from "../payment/payment.service";
+import { notify, NotificationType } from "../notification/notification.service";
 
 type CreateExtraChargeInput = z.infer<typeof createExtraChargeSchema>;
 type RespondExtraChargeInput = z.infer<typeof respondExtraChargeSchema>;
@@ -34,7 +35,7 @@ async function getProviderProfileOrThrow(userId: string) {
 
 export async function requestExtraCharge(userId: string, bookingId: string, input: CreateExtraChargeInput) {
   const profile = await getProviderProfileOrThrow(userId);
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { customer: true } });
   if (!booking || booking.providerProfileId !== profile.id) {
     throw new AppError(404, "Booking not found");
   }
@@ -42,7 +43,7 @@ export async function requestExtraCharge(userId: string, bookingId: string, inpu
     throw new AppError(409, `Cannot request an extra charge for a booking in status ${booking.status}`);
   }
 
-  return prisma.extraCharge.create({
+  const charge = await prisma.extraCharge.create({
     data: {
       bookingId,
       amount: input.amount,
@@ -50,11 +51,18 @@ export async function requestExtraCharge(userId: string, bookingId: string, inpu
       requestedById: userId,
     },
   });
+  await notify(
+    booking.customer.userId,
+    NotificationType.EXTRA_CHARGE_REQUESTED,
+    `The provider requested an extra charge of $${input.amount} for: ${input.reason}`,
+    bookingId,
+  );
+  return charge;
 }
 
 async function getOwnedExtraChargeForCustomer(userId: string, bookingId: string, chargeId: string) {
   const profile = await getCustomerProfileOrThrow(userId);
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { providerProfile: true } });
   if (!booking || booking.customerId !== profile.id) {
     throw new AppError(404, "Booking not found");
   }
@@ -77,10 +85,17 @@ export async function respondToExtraCharge(
   }
 
   if (!input.approve) {
-    return prisma.extraCharge.update({
+    const rejected = await prisma.extraCharge.update({
       where: { id: chargeId },
       data: { status: "REJECTED", respondedAt: new Date() },
     });
+    await notify(
+      booking.providerProfile.userId,
+      NotificationType.EXTRA_CHARGE_RESPONDED,
+      "Your extra charge request was rejected",
+      bookingId,
+    );
+    return rejected;
   }
 
   const [updated] = await prisma.$transaction([
@@ -93,7 +108,12 @@ export async function respondToExtraCharge(
       data: { price: { increment: charge.amount } },
     }),
   ]);
-  void booking;
+  await notify(
+    booking.providerProfile.userId,
+    NotificationType.EXTRA_CHARGE_RESPONDED,
+    "Your extra charge request was approved",
+    bookingId,
+  );
   return updated;
 }
 

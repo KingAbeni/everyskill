@@ -32,6 +32,10 @@ customerRouter.patch(
   asyncHandler(customerController.respondRescheduleHandler),
 );
 customerRouter.post("/me/bookings/:bookingId/dispute", asyncHandler(customerController.openDisputeHandler));
+customerRouter.post("/me/bookings/:bookingId/review", asyncHandler(customerController.createReviewHandler));
+customerRouter.get("/me/bookings/:bookingId/documentation", asyncHandler(customerController.listDocumentationHandler));
+customerRouter.post("/me/bookings/:bookingId/documentation", asyncHandler(customerController.submitBeforeDocumentationHandler));
+customerRouter.post("/me/bookings/:bookingId/documentation/compare", asyncHandler(customerController.compareBeforeAfterHandler));
 customerRouter.get("/me/bookings/:bookingId/messages", asyncHandler(customerController.listMessagesHandler));
 customerRouter.post("/me/bookings/:bookingId/messages", asyncHandler(customerController.sendMessageHandler));
 customerRouter.post("/me/bookings/:bookingId/pay", asyncHandler(customerController.payBookingHandler));
@@ -44,6 +48,12 @@ customerRouter.post(
   asyncHandler(customerController.payExtraChargeHandler),
 );
 customerRouter.get("/me/payments", asyncHandler(customerController.listPaymentsHandler));
+customerRouter.get("/me/reviews", asyncHandler(customerController.listMyReviewsHandler));
 
 customerRouter.get("/me/consents", asyncHandler(customerController.listConsentsHandler));
 customerRouter.post("/me/consents", asyncHandler(customerController.recordConsentHandler));
+
+customerRouter.get("/me/notifications", asyncHandler(customerController.listNotificationsHandler));
+customerRouter.get("/me/notifications/unread-count", asyncHandler(customerController.getNotificationsUnreadCountHandler));
+customerRouter.patch("/me/notifications/read-all", asyncHandler(customerController.markAllNotificationsReadHandler));
+customerRouter.patch("/me/notifications/:notificationId/read", asyncHandler(customerController.markNotificationReadHandler));

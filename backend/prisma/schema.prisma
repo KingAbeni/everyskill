@@ -66,6 +66,31 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum ReportReason {
+  POOR_QUALITY
+  FRAUD
+  INAPPROPRIATE_BEHAVIOUR
+  FAKE_REVIEW
+  OFFENSIVE_MESSAGE
+  SCAM_PROVIDER
+  INAPPROPRIATE_CONTENT
+}
+
+enum ReportTargetType {
+  USER
+  REVIEW
+  MESSAGE
+  LISTING
+  DOCUMENTATION
+}
+
+enum ReportActionType {
+  WARN
+  SUSPEND
+  BAN
+  DISMISS
+}
+
 enum NotificationChannel {
   IN_APP
   PUSH
@@ -82,6 +107,12 @@ enum PromotionType {
 enum NoShowParty {
   CUSTOMER
   PROVIDER
+}
+
+enum DocumentationKind {
+  BEFORE
+  COMPLETION
+  AFTER
 }
 
 enum PricingType {
@@ -116,6 +147,7 @@ model User {
   googleId          String?    @unique
   role              UserRole
   status            UserStatus @default(ACTIVE)
+  warningCount      Int        @default(0)
   emailVerified     Boolean    @default(false)
   refreshTokenHash  String?
   passwordResetTokenHash  String?
@@ -132,6 +164,7 @@ model User {
   reportsFiled      Report[]         @relation("ReportReporter")
   consentRecords    ConsentRecord[]
   auditLogs         AuditLog[]       @relation("AuditActor")
+  documentation     ServiceDocumentation[]
 }
 
 model ConsentRecord {
@@ -290,6 +323,7 @@ model ServiceListing {
   serviceArea        String?
   tags               String[]
   cancellationCutoffHours Int        @default(24)
+  requiresDocumentation Boolean      @default(true)
   isActive           Boolean         @default(true)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -451,12 +485,14 @@ model Dispute {
 }
 
 model ServiceDocumentation {
-  id        String   @id @default(uuid())
-  bookingId String
-  booking   Booking  @relation(fields: [bookingId], references: [id])
-  kind      String   // BEFORE | COMPLETION | AFTER
-  imageUrl  String
-  createdAt DateTime @default(now())
+  id           String            @id @default(uuid())
+  bookingId    String
+  booking      Booking           @relation(fields: [bookingId], references: [id])
+  kind         DocumentationKind
+  imageUrl     String
+  uploadedById String
+  uploadedBy   User              @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime          @default(now())
 }
 
 // ---------- Messaging ----------
@@ -484,14 +520,15 @@ model Message {
 // ---------- Notifications ----------
 
 model Notification {
-  id        String              @id @default(uuid())
-  userId    String
-  user      User                @relation(fields: [userId], references: [id])
-  type      String
-  channel   NotificationChannel
-  content   String
-  isRead    Boolean             @default(false)
-  createdAt DateTime            @default(now())
+  id          String              @id @default(uuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id])
+  type        String
+  channel     NotificationChannel
+  content     String
+  referenceId String?
+  isRead      Boolean             @default(false)
+  createdAt   DateTime            @default(now())
 }
 
 // ---------- Reviews ----------
@@ -508,23 +545,29 @@ model Review {
   comment           String?
   images            String[]
   providerReply     String?
+  providerRepliedAt DateTime?
   createdAt         DateTime        @default(now())
 }
 
 // ---------- Moderation ----------
 
+// reporterId is nullable to support system-filed reports (FR20's automatic suspicious-image
+// detection on listing/review/documentation uploads) — those have no human reporter.
 model Report {
-  id          String       @id @default(uuid())
-  reporterId  String
-  reporter    User         @relation("ReportReporter", fields: [reporterId], references: [id])
-  targetType  String
-  targetId    String
-  reason      String
-  description String?
-  images      String[]
-  status      ReportStatus @default(PENDING)
-  reviewedById String?
-  createdAt   DateTime     @default(now())
+  id             String            @id @default(uuid())
+  reporterId     String?
+  reporter       User?             @relation("ReportReporter", fields: [reporterId], references: [id])
+  targetType     ReportTargetType
+  targetId       String
+  reason         ReportReason
+  description    String?
+  images         String[]
+  status         ReportStatus      @default(PENDING)
+  actionTaken    ReportActionType?
+  resolutionNote String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime          @default(now())
 }
 
 // ---------- Promotions ----------

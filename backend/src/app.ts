@@ -9,6 +9,7 @@ import { adminRouter } from "./modules/admin/admin.routes";
 import { uploadRouter } from "./modules/upload/upload.routes";
 import { categoryRouter } from "./modules/category/category.routes";
 import { listingRouter } from "./modules/listing/listing.routes";
+import { reportRouter } from "./modules/report/report.routes";
 
 export function createApp() {
   const app = express();
@@ -28,6 +29,7 @@ export function createApp() {
   app.use("/api/uploads", uploadRouter);
   app.use("/api/categories", categoryRouter);
   app.use("/api/listings", listingRouter);
+  app.use("/api/reports", reportRouter);
 
   app.use(errorHandler);
 

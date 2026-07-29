@@ -4,6 +4,7 @@ import { AppError } from "../../utils/AppError";
 import { z } from "zod";
 import { proposeRescheduleSchema, respondRescheduleSchema } from "./reschedule.schemas";
 import * as availabilityService from "../availability/availability.service";
+import { notify, NotificationType } from "../notification/notification.service";
 
 type ProposeRescheduleInput = z.infer<typeof proposeRescheduleSchema>;
 type RespondRescheduleInput = z.infer<typeof respondRescheduleSchema>;
@@ -82,7 +83,10 @@ async function assertProposedTimeIsValid(
 
 export async function proposeRescheduleAsCustomer(userId: string, bookingId: string, input: ProposeRescheduleInput) {
   const profile = await getCustomerProfileOrThrow(userId);
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: true } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { listing: true, providerProfile: true },
+  });
   if (!booking || booking.customerId !== profile.id) {
     throw new AppError(404, "Booking not found");
   }
@@ -90,14 +94,24 @@ export async function proposeRescheduleAsCustomer(userId: string, bookingId: str
   await assertNoPendingRequest(bookingId);
   await assertProposedTimeIsValid(booking.providerProfileId, input.proposedAt, booking.listing.durationMinutes, bookingId);
 
-  return prisma.rescheduleRequest.create({
+  const request = await prisma.rescheduleRequest.create({
     data: { bookingId, proposedAt: input.proposedAt, requestedById: userId },
   });
+  await notify(
+    booking.providerProfile.userId,
+    NotificationType.RESCHEDULE_PROPOSED,
+    `The customer proposed a new time for the booking "${booking.listing.title}"`,
+    bookingId,
+  );
+  return request;
 }
 
 export async function proposeRescheduleAsProvider(userId: string, bookingId: string, input: ProposeRescheduleInput) {
   const profile = await getProviderProfileOrThrow(userId);
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: true } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { listing: true, customer: true },
+  });
   if (!booking || booking.providerProfileId !== profile.id) {
     throw new AppError(404, "Booking not found");
   }
@@ -105,9 +119,16 @@ export async function proposeRescheduleAsProvider(userId: string, bookingId: str
   await assertNoPendingRequest(bookingId);
   await assertProposedTimeIsValid(booking.providerProfileId, input.proposedAt, booking.listing.durationMinutes, bookingId);
 
-  return prisma.rescheduleRequest.create({
+  const request = await prisma.rescheduleRequest.create({
     data: { bookingId, proposedAt: input.proposedAt, requestedById: userId },
   });
+  await notify(
+    booking.customer.userId,
+    NotificationType.RESCHEDULE_PROPOSED,
+    `The provider proposed a new time for the booking "${booking.listing.title}"`,
+    bookingId,
+  );
+  return request;
 }
 
 async function getRequestOrThrow(bookingId: string, requestId: string) {
@@ -177,7 +198,14 @@ export async function respondToRescheduleAsCustomer(
     throw new AppError(409, "You cannot respond to your own reschedule request");
   }
 
-  return finalizeReschedule(booking, request, input.approve);
+  const updatedRequest = await finalizeReschedule(booking, request, input.approve);
+  await notify(
+    request.requestedById,
+    NotificationType.RESCHEDULE_RESPONDED,
+    `Your reschedule request was ${input.approve ? "approved" : "rejected"}`,
+    bookingId,
+  );
+  return updatedRequest;
 }
 
 export async function respondToRescheduleAsProvider(
@@ -199,5 +227,12 @@ export async function respondToRescheduleAsProvider(
     throw new AppError(409, "You cannot respond to your own reschedule request");
   }
 
-  return finalizeReschedule(booking, request, input.approve);
+  const updatedRequest = await finalizeReschedule(booking, request, input.approve);
+  await notify(
+    request.requestedById,
+    NotificationType.RESCHEDULE_RESPONDED,
+    `Your reschedule request was ${input.approve ? "approved" : "rejected"}`,
+    bookingId,
+  );
+  return updatedRequest;
 }

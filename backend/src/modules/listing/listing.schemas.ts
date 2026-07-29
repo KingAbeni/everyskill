@@ -10,6 +10,7 @@ export const listPublicListingsQuerySchema = z
     maxPrice: z.coerce.number().nonnegative().optional(),
     providerType: z.enum(["INDIVIDUAL", "BUSINESS"]).optional(),
     verified: z.coerce.boolean().optional(),
+    minRating: z.coerce.number().min(1).max(5).optional(),
     location: z.string().min(1).optional(),
     availableDate: z.coerce.date().optional(),
     latitude: z.coerce.number().min(-90).max(90).optional(),
@@ -38,6 +39,7 @@ export const createListingSchema = z.object({
   serviceArea: z.string().min(1).optional(),
   tags: z.array(z.string().min(1)).optional(),
   cancellationCutoffHours: z.number().int().min(0).optional(),
+  requiresDocumentation: z.boolean().optional(),
 });
 
 export const recommendCategorySchema = z.object({
@@ -60,5 +62,14 @@ export const updateListingSchema = z.object({
   serviceArea: z.string().min(1).optional(),
   tags: z.array(z.string().min(1)).optional(),
   cancellationCutoffHours: z.number().int().min(0).optional(),
+  requiresDocumentation: z.boolean().optional(),
   isActive: z.boolean().optional(),
+});
+
+export const recommendCategoryFromImageSchema = z.object({
+  imageUrl: z.string().url(),
+});
+
+export const analyzeImageSchema = z.object({
+  imageUrl: z.string().url(),
 });

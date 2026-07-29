@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import * as listingService from "./listing.service";
+import * as reviewService from "../review/review.service";
 import { aiSearchSchema, listPublicListingsQuerySchema } from "./listing.schemas";
 
 export async function listPublicListingsHandler(req: Request, res: Response) {
@@ -22,4 +23,9 @@ export async function aiSearchHandler(req: Request, res: Response) {
   const input = aiSearchSchema.parse(req.body);
   const result = await listingService.aiSearch(input);
   res.status(200).json(result);
+}
+
+export async function getListingReviewsHandler(req: Request, res: Response) {
+  const reviews = await reviewService.listReviewsForListing(req.params.listingId);
+  res.status(200).json(reviews);
 }

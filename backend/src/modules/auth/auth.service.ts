@@ -92,7 +92,8 @@ export async function login(email: string, password: string) {
   }
 
   if (user.status === "SUSPENDED" || user.status === "BANNED") {
-    throw new AppError(403, "Your account has been suspended. Please contact support.");
+    const verb = user.status === "BANNED" ? "banned" : "suspended";
+    throw new AppError(403, `Your account has been ${verb}. Please contact support.`);
   }
 
   const tokens = await issueTokens(user.id, user.role);

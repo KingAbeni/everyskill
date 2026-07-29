@@ -6,6 +6,7 @@ import { AppError } from "../../utils/AppError";
 import { getSignedKycDocumentUrl } from "../../config/supabaseStorage";
 import { z } from "zod";
 import { createAdminSchema, forceResetAdminPasswordSchema, listKycQuerySchema, reviewKycSchema } from "./admin.schemas";
+import { notify, NotificationType } from "../notification/notification.service";
 
 type ListKycQuery = z.infer<typeof listKycQuerySchema>;
 type ReviewKycInput = z.infer<typeof reviewKycSchema>;
@@ -25,6 +26,10 @@ export async function reviewKycRequest(adminUserId: string, kycId: string, input
   if (!kyc) {
     throw new AppError(404, "KYC request not found");
   }
+  const providerProfile = await prisma.providerProfile.findUniqueOrThrow({
+    where: { id: kyc.providerProfileId },
+    select: { userId: true },
+  });
 
   const [updatedKyc] = await prisma.$transaction([
     prisma.kycVerification.update({
@@ -53,6 +58,14 @@ export async function reviewKycRequest(adminUserId: string, kycId: string, input
       },
     }),
   ]);
+
+  await notify(
+    providerProfile.userId,
+    NotificationType.KYC_REVIEWED,
+    input.status === "VERIFIED"
+      ? "Your KYC verification was approved"
+      : `Your KYC verification was rejected: ${input.rejectionReason ?? "no reason given"}`,
+  );
 
   return updatedKyc;
 }
@@ -161,6 +174,8 @@ export async function reactivateUser(actorId: string, targetUserId: string) {
       },
     }),
   ]);
+
+  await notify(targetUserId, NotificationType.ACCOUNT_REACTIVATED, "Your account has been reactivated by an administrator");
 
   return { id: updated.id, email: updated.email, role: updated.role, status: updated.status };
 }

@@ -6,6 +6,9 @@ import * as extraChargeService from "../extraCharge/extraCharge.service";
 import * as rescheduleService from "../reschedule/reschedule.service";
 import * as disputeService from "../dispute/dispute.service";
 import * as messageService from "../message/message.service";
+import * as notificationService from "../notification/notification.service";
+import * as reviewService from "../review/review.service";
+import * as documentationService from "../documentation/documentation.service";
 import {
   addFavoriteSchema,
   createAddressSchema,
@@ -19,6 +22,9 @@ import { payExtraChargeSchema, respondExtraChargeSchema } from "../extraCharge/e
 import { proposeRescheduleSchema, respondRescheduleSchema } from "../reschedule/reschedule.schemas";
 import { openDisputeSchema } from "../dispute/dispute.schemas";
 import { sendMessageSchema } from "../message/message.schemas";
+import { listNotificationsQuerySchema } from "../notification/notification.schemas";
+import { createReviewSchema } from "../review/review.schemas";
+import { submitBeforeDocumentationSchema } from "../documentation/documentation.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await customerService.getMyProfile(req.user!.sub);
@@ -172,6 +178,54 @@ export async function recordConsentHandler(req: Request, res: Response) {
 export async function exportDataHandler(req: Request, res: Response) {
   const data = await customerService.exportMyData(req.user!.sub);
   res.status(200).json(data);
+}
+
+export async function listNotificationsHandler(req: Request, res: Response) {
+  const query = listNotificationsQuerySchema.parse(req.query);
+  const notifications = await notificationService.listMyNotifications(req.user!.sub, query);
+  res.status(200).json(notifications);
+}
+
+export async function getNotificationsUnreadCountHandler(req: Request, res: Response) {
+  const result = await notificationService.getUnreadCount(req.user!.sub);
+  res.status(200).json(result);
+}
+
+export async function markNotificationReadHandler(req: Request, res: Response) {
+  const notification = await notificationService.markAsRead(req.user!.sub, req.params.notificationId);
+  res.status(200).json(notification);
+}
+
+export async function markAllNotificationsReadHandler(req: Request, res: Response) {
+  const result = await notificationService.markAllAsRead(req.user!.sub);
+  res.status(200).json(result);
+}
+
+export async function createReviewHandler(req: Request, res: Response) {
+  const input = createReviewSchema.parse(req.body);
+  const review = await reviewService.createReview(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(review);
+}
+
+export async function listMyReviewsHandler(req: Request, res: Response) {
+  const reviews = await reviewService.listMyReviewsAsCustomer(req.user!.sub);
+  res.status(200).json(reviews);
+}
+
+export async function submitBeforeDocumentationHandler(req: Request, res: Response) {
+  const input = submitBeforeDocumentationSchema.parse(req.body);
+  const doc = await documentationService.submitBeforeDocumentation(req.user!.sub, req.params.bookingId, input);
+  res.status(201).json(doc);
+}
+
+export async function listDocumentationHandler(req: Request, res: Response) {
+  const docs = await documentationService.listDocumentationAsCustomer(req.user!.sub, req.params.bookingId);
+  res.status(200).json(docs);
+}
+
+export async function compareBeforeAfterHandler(req: Request, res: Response) {
+  const result = await documentationService.compareBeforeAfterAsCustomer(req.user!.sub, req.params.bookingId);
+  res.status(200).json(result);
 }
 
 export async function deleteAccountHandler(req: Request, res: Response) {

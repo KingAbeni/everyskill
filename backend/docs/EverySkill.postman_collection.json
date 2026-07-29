@@ -5,43 +5,161 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:4000" },
-    { "key": "email", "value": "provider@example.com" },
-    { "key": "password", "value": "SuperSecret123" },
-    { "key": "accessToken", "value": "" },
-    { "key": "refreshToken", "value": "" },
-    { "key": "providerAccessToken", "value": "" },
-    { "key": "providerRefreshToken", "value": "" },
-    { "key": "adminAccessToken", "value": "" },
-    { "key": "superAdminEmail", "value": "superadmin@everyskill.local" },
-    { "key": "superAdminPassword", "value": "" },
-    { "key": "superAdminAccessToken", "value": "" },
-    { "key": "newAdminEmail", "value": "new-admin@example.com" },
-    { "key": "newAdminPassword", "value": "SuperSecret123" },
-    { "key": "newAdminUserId", "value": "" },
-    { "key": "resetToken", "value": "" },
-    { "key": "addressId", "value": "" },
-    { "key": "providerProfileId", "value": "" },
-    { "key": "certificationId", "value": "" },
-    { "key": "kycId", "value": "" },
-    { "key": "documentPath", "value": "" },
-    { "key": "categoryId", "value": "" },
-    { "key": "categoryId2", "value": "" },
-    { "key": "listingId", "value": "" },
-    { "key": "bookingId", "value": "" },
-    { "key": "chargeId", "value": "" },
-    { "key": "billId", "value": "" },
-    { "key": "slotId", "value": "" },
-    { "key": "rescheduleRequestId", "value": "" },
-    { "key": "disputeId", "value": "" },
-    { "key": "targetUserId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "email",
+      "value": "provider@example.com"
+    },
+    {
+      "key": "password",
+      "value": "SuperSecret123"
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "refreshToken",
+      "value": ""
+    },
+    {
+      "key": "providerAccessToken",
+      "value": ""
+    },
+    {
+      "key": "providerRefreshToken",
+      "value": ""
+    },
+    {
+      "key": "adminAccessToken",
+      "value": ""
+    },
+    {
+      "key": "superAdminEmail",
+      "value": "superadmin@everyskill.local"
+    },
+    {
+      "key": "superAdminPassword",
+      "value": ""
+    },
+    {
+      "key": "superAdminAccessToken",
+      "value": ""
+    },
+    {
+      "key": "newAdminEmail",
+      "value": "new-admin@example.com"
+    },
+    {
+      "key": "newAdminPassword",
+      "value": "SuperSecret123"
+    },
+    {
+      "key": "newAdminUserId",
+      "value": ""
+    },
+    {
+      "key": "resetToken",
+      "value": ""
+    },
+    {
+      "key": "addressId",
+      "value": ""
+    },
+    {
+      "key": "providerProfileId",
+      "value": ""
+    },
+    {
+      "key": "certificationId",
+      "value": ""
+    },
+    {
+      "key": "kycId",
+      "value": ""
+    },
+    {
+      "key": "documentPath",
+      "value": ""
+    },
+    {
+      "key": "categoryId",
+      "value": ""
+    },
+    {
+      "key": "categoryId2",
+      "value": ""
+    },
+    {
+      "key": "listingId",
+      "value": ""
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    },
+    {
+      "key": "chargeId",
+      "value": ""
+    },
+    {
+      "key": "billId",
+      "value": ""
+    },
+    {
+      "key": "slotId",
+      "value": ""
+    },
+    {
+      "key": "rescheduleRequestId",
+      "value": ""
+    },
+    {
+      "key": "disputeId",
+      "value": ""
+    },
+    {
+      "key": "targetUserId",
+      "value": ""
+    },
+    {
+      "key": "notificationId",
+      "value": ""
+    },
+    {
+      "key": "reviewId",
+      "value": ""
+    },
+    {
+      "key": "documentationId",
+      "value": ""
+    },
+    {
+      "key": "reportId",
+      "value": ""
+    },
+    {
+      "key": "imageUrl",
+      "value": "https://raw.githubusercontent.com/github/explore/main/topics/nodejs/nodejs.png"
+    }
   ],
   "item": [
     {
       "name": "Health Check",
       "request": {
         "method": "GET",
-        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
       }
     },
     {
@@ -51,12 +169,27 @@
           "name": "Register (Customer)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"CUSTOMER\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"Intern\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
           },
           "event": [
             {
@@ -77,12 +210,27 @@
           "name": "Register (Provider - Individual)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"provider.individual@example.com\",\n  \"password\": \"{{password}}\",\n  \"role\": \"PROVIDER\",\n  \"providerType\": \"INDIVIDUAL\",\n  \"displayName\": \"Jane's Plumbing\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
           },
           "event": [
             {
@@ -103,12 +251,27 @@
           "name": "Register (Provider - Business)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"PROVIDER\",\n  \"providerType\": \"BUSINESS\",\n  \"displayName\": \"Acme Home Services\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            }
           },
           "event": [
             {
@@ -129,12 +292,27 @@
           "name": "Login",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
           },
           "event": [
             {
@@ -155,12 +333,27 @@
           "name": "Login (Super Admin)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
           },
           "description": "There's no public registration endpoint for privileged roles. The first SUPER_ADMIN is bootstrapped by running `npm run seed` once (with SUPER_ADMIN_EMAIL/SUPER_ADMIN_PASSWORD set in backend/.env) — set the 'superAdminPassword' collection variable to match, then log in here. From there, use Admin > Create Administrator to make ADMIN (or additional SUPER_ADMIN) accounts.",
           "event": [
@@ -180,12 +373,27 @@
           "name": "Refresh Token",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            }
           },
           "event": [
             {
@@ -206,20 +414,50 @@
           "name": "Logout",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            }
           }
         },
         {
           "name": "Forgot Password",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{email}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "forgot-password"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "forgot-password"
+              ]
+            }
           },
           "description": "No email provider is wired up yet, so the reset token is printed to the backend's console log instead of being emailed. Copy it from there into the 'resetToken' collection variable before running Reset Password."
         },
@@ -227,12 +465,27 @@
           "name": "Reset Password",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"NewSuperSecret456\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "reset-password"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "reset-password"
+              ]
+            }
           },
           "description": "Paste the token logged to the console by 'Forgot Password' into the 'resetToken' collection variable first (Collection > Variables tab)."
         },
@@ -241,14 +494,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"NewSuperSecret456\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/change-password", "host": ["{{baseUrl}}"], "path": ["api", "auth", "change-password"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-password"
+              ]
+            }
           },
           "description": "Self-service password change for an already-logged-in user (any role) — requires the current password, unlike Forgot/Reset Password. Also revokes the refresh token (other sessions get logged out). Swap {{accessToken}} for {{providerAccessToken}}/{{adminAccessToken}}/{{superAdminAccessToken}} to test other roles."
         }
@@ -262,8 +531,23 @@
           "name": "Get My Profile",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me"
+              ]
+            }
           }
         },
         {
@@ -271,22 +555,54 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"phone\": \"+1234567890\",\n  \"privacyPreferences\": { \"shareLocation\": false }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/customers/me", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me"
+              ]
+            }
           }
         },
         {
           "name": "List Addresses",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me/addresses", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "addresses"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/addresses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "addresses"
+              ]
+            }
           }
         },
         {
@@ -294,14 +610,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"label\": \"Home\",\n  \"line1\": \"221B Baker Street\",\n  \"city\": \"London\",\n  \"country\": \"UK\",\n  \"postalCode\": \"NW1 6XE\",\n  \"isDefault\": true\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/customers/me/addresses", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "addresses"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/addresses",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "addresses"
+              ]
+            }
           },
           "event": [
             {
@@ -321,8 +654,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -330,8 +669,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/addresses/{{addressId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "addresses", "{{addressId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "addresses",
+                "{{addressId}}"
+              ]
             }
           }
         },
@@ -339,11 +686,24 @@
           "name": "Delete Address",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/addresses/{{addressId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "addresses", "{{addressId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "addresses",
+                "{{addressId}}"
+              ]
             }
           }
         },
@@ -351,8 +711,24 @@
           "name": "List Favorites",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me/favorites", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "favorites"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/favorites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "favorites"
+              ]
+            }
           }
         },
         {
@@ -360,14 +736,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"providerProfileId\": \"{{providerProfileId}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/customers/me/favorites", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "favorites"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/favorites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "favorites"
+              ]
+            }
           },
           "description": "Set the 'providerProfileId' collection variable to a real ProviderProfile id first (e.g. from a provider registration response, once that id is exposed — for now, look it up via Prisma Studio)."
         },
@@ -375,11 +768,24 @@
           "name": "Remove Favorite",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/favorites/{{providerProfileId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "favorites", "{{providerProfileId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "favorites",
+                "{{providerProfileId}}"
+              ]
             }
           }
         },
@@ -387,8 +793,24 @@
           "name": "List Booking History",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "bookings"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings"
+              ]
+            }
           }
         },
         {
@@ -396,14 +818,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"scheduledAt\": \"2026-08-10T09:00:00.000Z\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/customers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "bookings"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings"
+              ]
+            }
           },
           "description": "scheduledAt must be in the future, within the provider's declared availability (Provider > Availability folder), and not conflict with another active booking for that provider. price is copied from the listing automatically.",
           "event": [
@@ -423,11 +862,24 @@
           "name": "Get Booking",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}"
+              ]
             }
           },
           "description": "Includes statusHistory — the full audit trail of status transitions (FR11)."
@@ -437,8 +889,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -446,8 +904,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/cancel",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "cancel"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "cancel"
+              ]
             }
           },
           "description": "cancellationReason is optional. Only valid from REQUESTED/ACCEPTED/IN_PROGRESS — 409 otherwise."
@@ -457,8 +924,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -466,8 +939,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/pay",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "pay"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "pay"
+              ]
             }
           },
           "description": "FR12. method is \"stripe\" (default) or \"offline\" — see 'Pay Booking (Offline)' below. paymentMethodId optional (defaults to pm_card_visa, Stripe's always-succeeds test card). Use pm_card_chargeDeclined to test a failed payment. Booking must be ACCEPTED first (Provider > Accept Booking). Requires STRIPE_SECRET_KEY (test mode) in backend/.env."
@@ -477,8 +959,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -486,8 +974,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/pay",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "pay"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "pay"
+              ]
             }
           },
           "description": "Pays the provider directly, bypassing Stripe. Response includes a 'disclaimer' (platform doesn't guarantee offline payments), 'amountDue', and 'platformBill' — the commission the provider now owes the platform (due in 5 days, see Provider > List My Bills)."
@@ -496,17 +993,161 @@
           "name": "List Payment History",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me/payments", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "payments"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "payments"
+              ]
+            }
           }
+        },
+        {
+          "name": "Create Review",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Excellent service!\",\n  \"images\": [\n    \"https://example.com/photo1.jpg\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "review"
+              ]
+            }
+          },
+          "description": "FR16. Booking must be COMPLETED and not already reviewed (409 otherwise). rating is 1-5."
+        },
+        {
+          "name": "List My Reviews",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "reviews"
+              ]
+            }
+          },
+          "description": "FR16. Every review the caller has written, newest first."
+        },
+        {
+          "name": "Submit Before Documentation Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageUrl\": \"https://example.com/before.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/documentation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "documentation"
+              ]
+            }
+          },
+          "description": "FR17. Always creates a BEFORE-kind row. Booking must be ACCEPTED or IN_PROGRESS."
+        },
+        {
+          "name": "List Booking Documentation (Customer)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/documentation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "documentation"
+              ]
+            }
+          },
+          "description": "FR17. All documentation rows (BEFORE/COMPLETION/AFTER) for this booking, oldest first."
         },
         {
           "name": "Respond to Extra Charge",
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -514,8 +1155,19 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/extra-charges/{{chargeId}}/respond",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "extra-charges", "{{chargeId}}", "respond"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "extra-charges",
+                "{{chargeId}}",
+                "respond"
+              ]
             }
           },
           "description": "approve: true increases the booking's price by the charge amount; approve: false rejects it with no further effect. Run Provider > Request Extra Charge first to populate 'chargeId'."
@@ -525,8 +1177,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -534,8 +1192,19 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/extra-charges/{{chargeId}}/pay",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "extra-charges", "{{chargeId}}", "pay"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "extra-charges",
+                "{{chargeId}}",
+                "pay"
+              ]
             }
           },
           "description": "Charge must be APPROVED first. method is \"stripe\" (immediate capture, not escrowed) or \"offline\" (same disclaimer/bill shape as Pay Booking (Offline))."
@@ -545,8 +1214,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -554,8 +1229,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/reschedule",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "reschedule"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "reschedule"
+              ]
             }
           },
           "description": "FR13 — an alternative to a late cancellation. Booking must be ACCEPTED/IN_PROGRESS; only one PENDING request allowed at a time. Captures the request id into 'rescheduleRequestId'.",
@@ -577,8 +1261,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -586,8 +1276,19 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/reschedule/{{rescheduleRequestId}}/respond",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "reschedule", "{{rescheduleRequestId}}", "respond"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "reschedule",
+                "{{rescheduleRequestId}}",
+                "respond"
+              ]
             }
           },
           "description": "Must be the OTHER party from whoever proposed it (409 otherwise). approve: true moves the booking to the proposed time; approve: false rejects it, booking unchanged."
@@ -596,11 +1297,25 @@
           "name": "Mark No-Show (Provider)",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/no-show",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "no-show"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "no-show"
+              ]
             }
           },
           "description": "FR13 — customer marks the PROVIDER as a no-show. No body. Booking must be ACCEPTED/IN_PROGRESS with scheduledAt already in the past (400 otherwise). Cancels the booking and logs a violation against the provider's standing."
@@ -610,8 +1325,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -619,8 +1340,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/dispute",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "dispute"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "dispute"
+              ]
             }
           },
           "description": "Booking must be ACCEPTED/IN_PROGRESS/COMPLETED; one dispute per booking. Moves the booking to DISPUTED (freezing normal actions until an admin resolves it). Captures the id into 'disputeId'.",
@@ -641,11 +1371,25 @@
           "name": "List Messages",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/messages",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "messages"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "messages"
+              ]
             }
           },
           "description": "FR14. Oldest first, each including sender { id, email, role }. Returns [] for a booking with no messages yet (never 404 for a booking you own)."
@@ -655,8 +1399,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -664,18 +1414,153 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/messages",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "customers", "me", "bookings", "{{bookingId}}", "messages"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "messages"
+              ]
             }
           },
           "description": "content and imageUrl are each optional but at least one is required (text-only, image-only, or both). For an image, upload it first via Uploads > Upload File (Public) and pass the returned url as imageUrl here."
         },
         {
+          "name": "List My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/notifications?unreadOnly=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unreadOnly",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "description": "FR15. Newest first. Optional ?unreadOnly=true restricts to unread only."
+        },
+        {
+          "name": "Get Notifications Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "notifications",
+                "unread-count"
+              ]
+            }
+          },
+          "description": "FR15. { unreadCount: number }."
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          },
+          "description": "FR15. Marks a single notification read. 404 if it does not exist or belongs to someone else."
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "notifications",
+                "read-all"
+              ]
+            }
+          },
+          "description": "FR15. { updated: number }."
+        },
+        {
           "name": "List Consent History",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me/consents", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "consents"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/consents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "consents"
+              ]
+            }
           }
         },
         {
@@ -683,32 +1568,108 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"consentType\": \"marketing_emails\",\n  \"granted\": false\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/customers/me/consents", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "consents"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/consents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "consents"
+              ]
+            }
           }
         },
         {
           "name": "Export My Data (GDPR)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me/export", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me", "export"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "export"
+              ]
+            }
           }
         },
         {
           "name": "Delete My Account (GDPR)",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/customers/me", "host": ["{{baseUrl}}"], "path": ["api", "customers", "me"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me"
+              ]
+            }
           },
           "description": "Irreversible in practice (see docs). Only run this against a throwaway test account."
+        },
+        {
+          "name": "Compare Before/After (Customer, AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/documentation/compare",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "documentation",
+                "compare"
+              ]
+            }
+          },
+          "description": "FR20. Same as the provider version."
         }
       ]
     },
@@ -720,8 +1681,23 @@
           "name": "Get My Profile",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me"
+              ]
+            }
           }
         },
         {
@@ -729,22 +1705,54 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"description\": \"10 years fixing pipes across London\",\n  \"skills\": [\"Plumbing\", \"Leak Repair\", \"Pipe Fitting\"],\n  \"yearsExperience\": 10,\n  \"contactInfo\": \"jane@platform.example\",\n  \"serviceArea\": \"Greater London\",\n  \"latitude\": 51.5074,\n  \"longitude\": -0.1278,\n  \"website\": \"https://janesplumbing.example.com\",\n  \"directorFirstName\": \"John\",\n  \"directorLastName\": \"Smith\",\n  \"directorContactInfo\": \"john.smith@acme.example\",\n  \"socialLinks\": { \"instagram\": \"https://instagram.com/janesplumbing\" },\n  \"portfolioLinks\": { \"behance\": \"https://behance.net/janesplumbing\" },\n  \"languages\": [\"en\", \"fr\"],\n  \"galleryImages\": [\"https://example.com/gallery1.jpg\", \"https://example.com/gallery2.jpg\"],\n  \"operatingHours\": { \"monday\": { \"open\": \"09:00\", \"close\": \"17:00\" } }\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me"
+              ]
+            }
           }
         },
         {
           "name": "List Certifications",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/certifications", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "certifications"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/certifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "certifications"
+              ]
+            }
           }
         },
         {
@@ -752,14 +1760,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Certified Master Plumber\",\n  \"issuer\": \"UK Plumbing Board\",\n  \"fileUrl\": \"https://example.com/cert.pdf\",\n  \"verificationLink\": \"https://example.com/verify/123\",\n  \"expiryDate\": \"2027-01-01T00:00:00.000Z\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/certifications", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "certifications"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/certifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "certifications"
+              ]
+            }
           },
           "event": [
             {
@@ -778,11 +1803,24 @@
           "name": "Delete Certification",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/certifications/{{certificationId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "certifications", "{{certificationId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "certifications",
+                "{{certificationId}}"
+              ]
             }
           }
         },
@@ -790,8 +1828,24 @@
           "name": "List My Listings",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/listings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings"
+              ]
+            }
           }
         },
         {
@@ -799,30 +1853,133 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Emergency Leak Repair\",\n  \"description\": \"Same-day callout for burst pipes and leaks.\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/listings/recommend-category", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings", "recommend-category"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/recommend-category",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "recommend-category"
+              ]
+            }
           },
           "description": "FR7 — advisory only, doesn't create anything. Returns { category: {id, name}, confidence, reasoning } drawn from your existing Category list (run Categories > Create Category first if none exist). Requires GROQ_API_KEY set in backend/.env (free key at console.groq.com) — without it this returns 500."
+        },
+        {
+          "name": "Recommend Category From Image (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageUrl\": \"{{imageUrl}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/recommend-category-from-image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "recommend-category-from-image"
+              ]
+            }
+          },
+          "description": "FR20. Vision counterpart to FR7's text-based recommend-category. Advisory only."
+        },
+        {
+          "name": "Analyze Image (Detect Service Objects, AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageUrl\": \"{{imageUrl}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/analyze-image",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "analyze-image"
+              ]
+            }
+          },
+          "description": "FR20. Returns { objects: string[], description: string }. Not tied to any specific listing."
         },
         {
           "name": "Create Listing",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"categoryIds\": [\"{{categoryId}}\", \"{{categoryId2}}\"],\n  \"title\": \"Emergency Leak Repair\",\n  \"description\": \"Same-day callout for burst pipes and leaks.\",\n  \"pricingType\": \"FIXED\",\n  \"price\": 75.00,\n  \"durationMinutes\": 60,\n  \"images\": [\"https://example.com/listing1.jpg\"],\n  \"serviceArea\": \"Greater London\",\n  \"tags\": [\"plumbing\", \"emergency\"],\n  \"cancellationCutoffHours\": 24\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/listings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings"
+              ]
+            }
           },
           "description": "categoryIds is a non-empty array — a listing can belong to multiple categories. Run Categories > Create Category and Create Subcategory (as admin) first to populate 'categoryId' and 'categoryId2'. pricingType is FIXED (price = total for the whole task) or HOURLY (price = rate per hour) — see 'Create Listing (Hourly)' for the other mode.",
           "event": [
@@ -843,14 +2000,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"categoryIds\": [\"{{categoryId}}\"],\n  \"title\": \"General Handyman Services\",\n  \"description\": \"Odd jobs billed by the hour — furniture assembly, small repairs, mounting.\",\n  \"pricingType\": \"HOURLY\",\n  \"price\": 25.00,\n  \"durationMinutes\": 60,\n  \"tags\": [\"handyman\"]\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/listings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "listings"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings"
+              ]
+            }
           },
           "description": "Same endpoint as 'Create Listing' but pricingType: HOURLY — here price (25.00) is the rate charged per hour, not a total. durationMinutes is still the estimated/scheduled duration used for booking slots."
         },
@@ -858,11 +2032,24 @@
           "name": "Get My Listing",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "listings", "{{listingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "{{listingId}}"
+              ]
             }
           }
         },
@@ -871,8 +2058,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -880,8 +2073,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "listings", "{{listingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "{{listingId}}"
+              ]
             }
           },
           "description": "Any subset of the create fields, plus isActive: false to unpublish without deleting. categoryIds REPLACES the full set of categories (here, dropping categoryId2 and keeping only categoryId) — it must stay non-empty."
@@ -890,20 +2091,130 @@
           "name": "Delete My Listing",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "listings", "{{listingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "{{listingId}}"
+              ]
             }
           }
+        },
+        {
+          "name": "Get Listing Completeness (AI-adjacent, deterministic)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}/completeness",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "{{listingId}}",
+                "completeness"
+              ]
+            }
+          },
+          "description": "FR19. Deterministic checklist (no AI call) — missing images, short description, no tags, no service area."
+        },
+        {
+          "name": "Improve Listing Description (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}/improve-description",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "{{listingId}}",
+                "improve-description"
+              ]
+            }
+          },
+          "description": "FR19. Returns { improvedDescription, reasoning }. Advisory only — does not modify the listing."
+        },
+        {
+          "name": "Suggest Listing Keywords (AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/listings/{{listingId}}/suggest-keywords",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "listings",
+                "{{listingId}}",
+                "suggest-keywords"
+              ]
+            }
+          },
+          "description": "FR19. Returns { keywords: string[], reasoning }."
         },
         {
           "name": "List My Availability",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/availability", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "availability"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "availability"
+              ]
+            }
           }
         },
         {
@@ -911,14 +2222,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"dayOfWeek\": 1,\n  \"startTime\": \"09:00\",\n  \"endTime\": \"17:00\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/availability", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "availability"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "availability"
+              ]
+            }
           },
           "description": "dayOfWeek is 0 (Sunday) through 6 (Saturday) — this creates a weekly-repeating open window every Monday 9am-5pm. Captures the id into 'slotId'.",
           "event": [
@@ -939,14 +2267,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"date\": \"2026-08-15\",\n  \"startTime\": \"00:00\",\n  \"endTime\": \"23:59\",\n  \"isBlocked\": true\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/availability", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "availability"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/availability",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "availability"
+              ]
+            }
           },
           "description": "date (not dayOfWeek) blocks one specific calendar date — e.g. a holiday. isBlocked windows are allowed to overlap open windows (that's how a lunch-break carve-out works); two OPEN windows overlapping on the same day/date get a 409."
         },
@@ -955,8 +2300,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -964,8 +2315,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/availability/{{slotId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "availability", "{{slotId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "availability",
+                "{{slotId}}"
+              ]
             }
           },
           "description": "Any subset of the create fields. To switch a slot from recurring to specific-date (or vice versa), pass the other field explicitly as null."
@@ -974,11 +2333,24 @@
           "name": "Delete Availability Slot",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/availability/{{slotId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "availability", "{{slotId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "availability",
+                "{{slotId}}"
+              ]
             }
           }
         },
@@ -986,20 +2358,57 @@
           "name": "List My KYC Documents",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/kyc", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "kyc"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/kyc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "kyc"
+              ]
+            }
           }
         },
         {
           "name": "Upload KYC Document (Private)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
-              "formdata": [{ "key": "file", "type": "file", "src": null }]
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null
+                }
+              ]
             },
-            "url": { "raw": "{{baseUrl}}/api/uploads/kyc", "host": ["{{baseUrl}}"], "path": ["api", "uploads", "kyc"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/uploads/kyc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "uploads",
+                "kyc"
+              ]
+            }
           },
           "description": "Uploads to the PRIVATE KYC bucket (unlike the generic Uploads > Upload File request). Select a real file for the 'file' field before sending. Run this before 'Submit KYC Document' — it captures the returned path into the 'documentPath' variable.",
           "event": [
@@ -1020,14 +2429,31 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"documentType\": \"IDENTITY\",\n  \"documentPath\": \"{{documentPath}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/kyc", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "kyc"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/kyc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "kyc"
+              ]
+            }
           },
           "description": "documentType is IDENTITY (individuals), or BUSINESS_REGISTRATION / REPRESENTATIVE_IDENTITY (businesses). Run 'Upload KYC Document (Private)' first to populate documentPath.",
           "event": [
@@ -1047,11 +2473,25 @@
           "name": "Get My KYC Document URL",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/kyc/{{kycId}}/document-url",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "kyc", "{{kycId}}", "document-url"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "kyc",
+                "{{kycId}}",
+                "document-url"
+              ]
             }
           },
           "description": "Returns a signed URL valid for 10 minutes."
@@ -1060,19 +2500,48 @@
           "name": "List My Bookings",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/bookings", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "bookings"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings"
+              ]
+            }
           }
         },
         {
           "name": "Get My Booking",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}"
+              ]
             }
           },
           "description": "Includes statusHistory — the full audit trail of status transitions (FR11)."
@@ -1081,11 +2550,25 @@
           "name": "Accept Booking",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/accept",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "accept"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "accept"
+              ]
             }
           },
           "description": "No body. REQUESTED -> ACCEPTED. 409 if the booking isn't currently REQUESTED."
@@ -1094,11 +2577,25 @@
           "name": "Decline Booking",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/decline",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "decline"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "decline"
+              ]
             }
           },
           "description": "No body. REQUESTED -> DECLINED."
@@ -1107,11 +2604,25 @@
           "name": "Start Booking",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/start",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "start"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "start"
+              ]
             }
           },
           "description": "No body. ACCEPTED -> IN_PROGRESS."
@@ -1120,11 +2631,25 @@
           "name": "Complete Booking",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/complete",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "complete"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "complete"
+              ]
             }
           },
           "description": "No body. IN_PROGRESS -> COMPLETED."
@@ -1134,8 +2659,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1143,8 +2674,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/cancel",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "cancel"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "cancel"
+              ]
             }
           },
           "description": "cancellationReason optional. Valid from REQUESTED/ACCEPTED/IN_PROGRESS."
@@ -1154,8 +2694,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1163,8 +2709,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/extra-charges",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "extra-charges"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "extra-charges"
+              ]
             }
           },
           "description": "Booking must be ACCEPTED or IN_PROGRESS. Captures the new charge's id into 'chargeId' — the customer must approve it (Customer > Respond to Extra Charge) before it can be paid.",
@@ -1185,8 +2740,24 @@
           "name": "List My Payments",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/payments", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "payments"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/payments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "payments"
+              ]
+            }
           },
           "description": "FR12 transaction history — every payment across bookings for your listings, including each payment's booking."
         },
@@ -1194,8 +2765,24 @@
           "name": "Get My Balance",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/balance", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "balance"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/balance",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "balance"
+              ]
+            }
           },
           "description": "Credited automatically (net of platform commission) whenever a Stripe payment or extra charge is released."
         },
@@ -1204,14 +2791,32 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"amount\": 50\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/providers/me/balance/withdraw", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "balance", "withdraw"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/balance/withdraw",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "balance",
+                "withdraw"
+              ]
+            }
           },
           "description": "amount optional — omit to withdraw the entire available balance. Simulated: no real bank transfer, just marks the ledger amount as paid out."
         },
@@ -1219,16 +2824,48 @@
           "name": "List My Withdrawals",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/withdrawals", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "withdrawals"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/withdrawals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "withdrawals"
+              ]
+            }
           }
         },
         {
           "name": "List My Bills",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/providers/me/bills", "host": ["{{baseUrl}}"], "path": ["api", "providers", "me", "bills"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bills"
+              ]
+            }
           },
           "description": "Commission owed on offline-paid bookings/extra charges. Unpaid past 5 days -> account suspended (see docs/API.md)."
         },
@@ -1237,8 +2874,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1246,8 +2889,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bills/{{billId}}/pay",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bills", "{{billId}}", "pay"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bills",
+                "{{billId}}",
+                "pay"
+              ]
             }
           },
           "description": "method is \"stripe\" (charges the provider directly) or \"balance\" (deducts from their own platform balance instead, {\"method\":\"balance\"} with no paymentMethodId). Paying off your last overdue bill auto-reactivates a suspended account."
@@ -1257,8 +2909,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1266,8 +2924,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/reschedule",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "reschedule"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "reschedule"
+              ]
             }
           },
           "description": "FR13 — an alternative to a late cancellation. Booking must be ACCEPTED/IN_PROGRESS; only one PENDING request allowed at a time. Captures the request id into 'rescheduleRequestId'.",
@@ -1289,8 +2956,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1298,8 +2971,19 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/reschedule/{{rescheduleRequestId}}/respond",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "reschedule", "{{rescheduleRequestId}}", "respond"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "reschedule",
+                "{{rescheduleRequestId}}",
+                "respond"
+              ]
             }
           },
           "description": "Must be the OTHER party from whoever proposed it (409 otherwise). approve: true moves the booking to the proposed time; approve: false rejects it, booking unchanged."
@@ -1308,11 +2992,25 @@
           "name": "Mark No-Show (Customer)",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/no-show",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "no-show"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "no-show"
+              ]
             }
           },
           "description": "FR13 — provider marks the CUSTOMER as a no-show. No body. Booking must be ACCEPTED/IN_PROGRESS with scheduledAt already in the past (400 otherwise). Cancels the booking and logs a violation against the customer's standing."
@@ -1322,8 +3020,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1331,8 +3035,17 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/dispute",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "dispute"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "dispute"
+              ]
             }
           },
           "description": "Booking must be ACCEPTED/IN_PROGRESS/COMPLETED; one dispute per booking. Moves the booking to DISPUTED. Captures the id into 'disputeId'.",
@@ -1353,11 +3066,25 @@
           "name": "List Messages",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{providerAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/messages",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "messages"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "messages"
+              ]
             }
           },
           "description": "FR14. Oldest first, each including sender { id, email, role }. Returns [] for a booking with no messages yet (never 404 for a booking you own)."
@@ -1367,8 +3094,14 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{providerAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1376,11 +3109,280 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/messages",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "providers", "me", "bookings", "{{bookingId}}", "messages"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "messages"
+              ]
             }
           },
           "description": "content and imageUrl are each optional but at least one is required (text-only, image-only, or both). For an image, upload it first via Uploads > Upload File (Public) and pass the returned url as imageUrl here."
+        },
+        {
+          "name": "List My Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/notifications?unreadOnly=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unreadOnly",
+                  "value": "false"
+                }
+              ]
+            }
+          },
+          "description": "FR15. Newest first. Optional ?unreadOnly=true restricts to unread only."
+        },
+        {
+          "name": "Get Notifications Unread Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "notifications",
+                "unread-count"
+              ]
+            }
+          },
+          "description": "FR15. { unreadCount: number }."
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          },
+          "description": "FR15. Marks a single notification read. 404 if it does not exist or belongs to someone else."
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "notifications",
+                "read-all"
+              ]
+            }
+          },
+          "description": "FR15. { updated: number }."
+        },
+        {
+          "name": "List Reviews About Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "reviews"
+              ]
+            }
+          },
+          "description": "FR16. Every review written about the caller, newest first, including customer name."
+        },
+        {
+          "name": "Reply to Review",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reply\": \"Thanks for the feedback, we're working on it!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/reviews/{{reviewId}}/reply",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "reviews",
+                "{{reviewId}}",
+                "reply"
+              ]
+            }
+          },
+          "description": "FR16. One-time reply (409 if this review already has one)."
+        },
+        {
+          "name": "Submit Completion/After Documentation Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"COMPLETION\",\n  \"imageUrl\": \"https://example.com/completion.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/documentation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "documentation"
+              ]
+            }
+          },
+          "description": "FR17. kind is COMPLETION or AFTER. Booking must be IN_PROGRESS. Both kinds are required before PATCH .../complete will succeed."
+        },
+        {
+          "name": "List Booking Documentation (Provider)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/documentation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "documentation"
+              ]
+            }
+          },
+          "description": "FR17. All documentation rows for this booking, oldest first."
+        },
+        {
+          "name": "Compare Before/After (Provider, AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/documentation/compare",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "documentation",
+                "compare"
+              ]
+            }
+          },
+          "description": "FR20. Requires both a BEFORE and an AFTER ServiceDocumentation image to already exist (409 otherwise). Returns { verdict, confidence, reasoning }."
         }
       ]
     },
@@ -1392,8 +3394,23 @@
           "name": "List Administrators",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/admin/admins", "host": ["{{baseUrl}}"], "path": ["api", "admin", "admins"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "admins"
+              ]
+            }
           },
           "description": "SUPER_ADMIN only. Returns every ADMIN/SUPER_ADMIN account."
         },
@@ -1402,14 +3419,30 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{newAdminEmail}}\",\n  \"password\": \"{{newAdminPassword}}\",\n  \"role\": \"ADMIN\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/admin/admins", "host": ["{{baseUrl}}"], "path": ["api", "admin", "admins"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "admins"
+              ]
+            }
           },
           "description": "SUPER_ADMIN only. role is \"ADMIN\" or \"SUPER_ADMIN\" (defaults to ADMIN). Captures the new account's id into 'newAdminUserId' — run 'Auth > Login (New Admin)' afterward to get a usable adminAccessToken.",
           "event": [
@@ -1429,12 +3462,27 @@
           "name": "Login (New Admin)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"{{newAdminEmail}}\",\n  \"password\": \"{{newAdminPassword}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            }
           },
           "description": "Logs in as the account created by 'Create Administrator', populating 'adminAccessToken' for the KYC requests below.",
           "event": [
@@ -1455,8 +3503,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1464,8 +3518,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/admins/{{newAdminUserId}}/password",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "admins", "{{newAdminUserId}}", "password"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "admins",
+                "{{newAdminUserId}}",
+                "password"
+              ]
             }
           },
           "description": "SUPER_ADMIN only. Directly sets the target ADMIN/SUPER_ADMIN account's password (offboarding/lockout recovery) — no email/token round-trip. Revokes their refresh token and clears any pending self-service reset token."
@@ -1474,8 +3536,23 @@
           "name": "Get Platform Settings",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/admin/platform-settings", "host": ["{{baseUrl}}"], "path": ["api", "admin", "platform-settings"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/platform-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "platform-settings"
+              ]
+            }
           },
           "description": "ADMIN or SUPER_ADMIN. Auto-creates a default 10% commission the first time this is read."
         },
@@ -1484,14 +3561,30 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{superAdminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{superAdminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"commissionPercent\": 10\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/admin/platform-settings", "host": ["{{baseUrl}}"], "path": ["api", "admin", "platform-settings"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/platform-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "platform-settings"
+              ]
+            }
           },
           "description": "SUPER_ADMIN only (FR24 'Commissions'). commissionPercent is 0-100, deducted whenever a payment or extra charge is released to a provider."
         },
@@ -1499,11 +3592,24 @@
           "name": "Reactivate User",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/users/{{targetUserId}}/reactivate",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "users", "{{targetUserId}}", "reactivate"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "users",
+                "{{targetUserId}}",
+                "reactivate"
+              ]
             }
           },
           "description": "FR13 — manually lifts a SUSPENDED account (e.g. from 3 logged violations). No body. 409 if the target isn't currently SUSPENDED. Set 'targetUserId' to the suspended user's id first."
@@ -1512,8 +3618,23 @@
           "name": "List Disputes",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/admin/disputes", "host": ["{{baseUrl}}"], "path": ["api", "admin", "disputes"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/disputes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "disputes"
+              ]
+            }
           },
           "description": "Optional ?status=OPEN|UNDER_REVIEW|RESOLVED|REJECTED filter. Each includes the full booking (customer, providerProfile, listing, payment)."
         },
@@ -1521,11 +3642,23 @@
           "name": "Get Dispute",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/disputes/{{disputeId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "disputes", "{{disputeId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "disputes",
+                "{{disputeId}}"
+              ]
             }
           }
         },
@@ -1533,11 +3666,24 @@
           "name": "Mark Dispute Under Review",
           "request": {
             "method": "PATCH",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/disputes/{{disputeId}}/review",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "disputes", "{{disputeId}}", "review"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "disputes",
+                "{{disputeId}}",
+                "review"
+              ]
             }
           },
           "description": "No body. Only valid from status OPEN (409 otherwise) — a lightweight bookkeeping step before a final decision."
@@ -1547,8 +3693,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1556,8 +3708,16 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/disputes/{{disputeId}}/resolve",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "disputes", "{{disputeId}}", "resolve"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "disputes",
+                "{{disputeId}}",
+                "resolve"
+              ]
             }
           },
           "description": "decision is \"REFUND_CUSTOMER\" (booking -> CANCELLED; refunds the escrow, or issues a real Stripe refund + balance clawback if already captured), \"RELEASE_PROVIDER\" (booking -> COMPLETED; captures the escrow and credits the provider's balance, or no-ops if already released), or \"DISMISS\" (booking -> COMPLETED, no payment action, dispute -> REJECTED). 409 if already resolved/rejected."
@@ -1566,20 +3726,51 @@
           "name": "List KYC Requests",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/api/admin/kyc", "host": ["{{baseUrl}}"], "path": ["api", "admin", "kyc"] }
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/kyc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kyc"
+              ]
+            }
           }
         },
         {
           "name": "List KYC Requests (Pending Only)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/kyc?status=PENDING",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "kyc"],
-              "query": [{ "key": "status", "value": "PENDING" }]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kyc"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
             }
           }
         },
@@ -1588,8 +3779,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1597,8 +3794,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/kyc/{{kycId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "kyc", "{{kycId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kyc",
+                "{{kycId}}"
+              ]
             }
           }
         },
@@ -1607,8 +3811,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1616,8 +3826,15 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/admin/kyc/{{kycId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "kyc", "{{kycId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kyc",
+                "{{kycId}}"
+              ]
             }
           },
           "description": "rejectionReason is required when status is REJECTED."
@@ -1626,14 +3843,344 @@
           "name": "Get KYC Document URL",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/admin/kyc/{{kycId}}/document-url",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "admin", "kyc", "{{kycId}}", "document-url"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "kyc",
+                "{{kycId}}",
+                "document-url"
+              ]
             }
           },
           "description": "Returns a signed URL valid for 10 minutes, for reviewing any provider's document."
+        },
+        {
+          "name": "List Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "description": "FR18. Optional ?status filter. Oldest first (FIFO moderation queue)."
+        },
+        {
+          "name": "Get Report",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "{{reportId}}"
+              ]
+            }
+          },
+          "description": "FR18."
+        },
+        {
+          "name": "Mark Report Reviewed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}/review",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "review"
+              ]
+            }
+          },
+          "description": "FR18. PENDING -> REVIEWED (optional step before .../action)."
+        },
+        {
+          "name": "Action Report (Warn)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"WARN\",\n  \"resolutionNote\": \"First warning for reported scam behavior\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}/action",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "action"
+              ]
+            }
+          },
+          "description": "FR18. action is WARN|SUSPEND|BAN|DISMISS. For non-USER targets, resolves to the underlying user (review author / message sender / listing owner)."
+        },
+        {
+          "name": "Action Report (Suspend)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"SUSPEND\",\n  \"resolutionNote\": \"Suspended pending further review\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}/action",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "action"
+              ]
+            }
+          },
+          "description": "FR18."
+        },
+        {
+          "name": "Action Report (Ban)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"BAN\",\n  \"resolutionNote\": \"Confirmed fraudulent activity\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}/action",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "action"
+              ]
+            }
+          },
+          "description": "FR18."
+        },
+        {
+          "name": "Action Report (Dismiss)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"DISMISS\",\n  \"resolutionNote\": \"No evidence found\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/reports/{{reportId}}/action",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "action"
+              ]
+            }
+          },
+          "description": "FR18."
+        },
+        {
+          "name": "List My Notifications (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications"
+              ]
+            }
+          },
+          "description": "FR15/FR18. Admins previously had no notification endpoints at all — added alongside FR18 since REPORT_FILED is the first thing that notifies them."
+        },
+        {
+          "name": "Get Notifications Unread Count (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications",
+                "unread-count"
+              ]
+            }
+          },
+          "description": "FR15/FR18."
+        },
+        {
+          "name": "Mark Notification Read (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          },
+          "description": "FR15/FR18."
+        },
+        {
+          "name": "Mark All Notifications Read (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "notifications",
+                "read-all"
+              ]
+            }
+          },
+          "description": "FR15/FR18."
         }
       ]
     },
@@ -1645,7 +4192,16 @@
           "name": "List Categories",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
           }
         },
         {
@@ -1653,14 +4209,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Plumbing\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
           },
           "event": [
             {
@@ -1680,14 +4251,29 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Emergency Plumbing\",\n  \"parentId\": \"{{categoryId}}\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/categories", "host": ["{{baseUrl}}"], "path": ["api", "categories"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
           },
           "description": "parentId is optional — omit it to create a top-level category. Captures its id into 'categoryId2', so Provider > Create Listing can attach a listing to two categories at once.",
           "event": [
@@ -1708,8 +4294,14 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" },
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -1717,8 +4309,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "categories", "{{categoryId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{categoryId}}"
+              ]
             }
           },
           "description": "Pass parentId: null to move a category back to top-level."
@@ -1727,11 +4325,22 @@
           "name": "Delete Category",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "categories", "{{categoryId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{categoryId}}"
+              ]
             }
           },
           "description": "Fails with 409 if the category has subcategories or listings attached."
@@ -1746,7 +4355,16 @@
           "name": "Search Listings",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/api/listings", "host": ["{{baseUrl}}"], "path": ["api", "listings"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/listings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ]
+            }
           }
         },
         {
@@ -1755,14 +4373,34 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/listings?categoryId={{categoryId}}&search=leak&pricingType=FIXED&minPrice=20&maxPrice=100",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "listings"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ],
               "query": [
-                { "key": "categoryId", "value": "{{categoryId}}" },
-                { "key": "search", "value": "leak" },
-                { "key": "pricingType", "value": "FIXED" },
-                { "key": "minPrice", "value": "20" },
-                { "key": "maxPrice", "value": "100" }
+                {
+                  "key": "categoryId",
+                  "value": "{{categoryId}}"
+                },
+                {
+                  "key": "search",
+                  "value": "leak"
+                },
+                {
+                  "key": "pricingType",
+                  "value": "FIXED"
+                },
+                {
+                  "key": "minPrice",
+                  "value": "20"
+                },
+                {
+                  "key": "maxPrice",
+                  "value": "100"
+                }
               ]
             }
           },
@@ -1774,12 +4412,26 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/listings?latitude=51.5074&longitude=-0.1278&radiusKm=50",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "listings"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ],
               "query": [
-                { "key": "latitude", "value": "51.5074" },
-                { "key": "longitude", "value": "-0.1278" },
-                { "key": "radiusKm", "value": "50" }
+                {
+                  "key": "latitude",
+                  "value": "51.5074"
+                },
+                {
+                  "key": "longitude",
+                  "value": "-0.1278"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "50"
+                }
               ]
             }
           },
@@ -1791,12 +4443,26 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/listings?availableDate=2026-08-10&verified=true&providerType=INDIVIDUAL",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "listings"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings"
+              ],
               "query": [
-                { "key": "availableDate", "value": "2026-08-10" },
-                { "key": "verified", "value": "true" },
-                { "key": "providerType", "value": "INDIVIDUAL" }
+                {
+                  "key": "availableDate",
+                  "value": "2026-08-10"
+                },
+                {
+                  "key": "verified",
+                  "value": "true"
+                },
+                {
+                  "key": "providerType",
+                  "value": "INDIVIDUAL"
+                }
               ]
             }
           },
@@ -1806,12 +4472,27 @@
           "name": "AI Search (FR10)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"query\": \"I need an affordable plumber in London, budget under 100\"\n}"
             },
-            "url": { "raw": "{{baseUrl}}/api/listings/ai-search", "host": ["{{baseUrl}}"], "path": ["api", "listings", "ai-search"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/ai-search",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "ai-search"
+              ]
+            }
           },
           "description": "No auth required. Understands natural language, extracts category/budget/location/date/urgency via Groq, runs the normal search with those filters, and returns { interpretation, results } where each result has a matchReasons array explaining the match. Requires GROQ_API_KEY (same as FR7's Recommend Category) — without it, returns 500."
         },
@@ -1821,8 +4502,14 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/listings/{{listingId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "listings", "{{listingId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}"
+              ]
             }
           }
         },
@@ -1832,11 +4519,129 @@
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/listings/{{listingId}}/availability",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "listings", "{{listingId}}", "availability"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}",
+                "availability"
+              ]
             }
           },
           "description": "Resolves the listing to its owning provider and returns that provider's AvailabilitySlot rows (FR8) — lets a customer see open/blocked windows before booking."
+        },
+        {
+          "name": "Get Listing Reviews",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/listings/{{listingId}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "listings",
+                "{{listingId}}",
+                "reviews"
+              ]
+            }
+          },
+          "description": "FR16. Public. Reviews for bookings of this listing, newest first, with customer {firstName,lastName}."
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "File Report (against User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"USER\",\n  \"targetId\": \"{{targetUserId}}\",\n  \"reason\": \"SCAM_PROVIDER\",\n  \"description\": \"Took payment offline and never showed up\",\n  \"images\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports"
+              ]
+            }
+          },
+          "description": "FR18. Any authenticated user, any role (bidirectional). targetType is USER|REVIEW|MESSAGE|LISTING; targetId must reference a real row of that type (404 otherwise)."
+        },
+        {
+          "name": "File Report (against Listing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"targetType\": \"LISTING\",\n  \"targetId\": \"{{listingId}}\",\n  \"reason\": \"INAPPROPRIATE_CONTENT\",\n  \"description\": \"Misleading images\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports"
+              ]
+            }
+          },
+          "description": "FR18. Actioning this report (WARN/SUSPEND/BAN) resolves to the listing's owning provider, not the reporter."
+        },
+        {
+          "name": "List My Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reports",
+                "mine"
+              ]
+            }
+          },
+          "description": "FR18. Every report the caller has filed, newest first."
         }
       ]
     },
@@ -1848,12 +4653,32 @@
           "name": "Upload File (Public)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "body": {
               "mode": "formdata",
-              "formdata": [{ "key": "file", "type": "file", "src": null }]
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": null
+                }
+              ]
             },
-            "url": { "raw": "{{baseUrl}}/api/uploads", "host": ["{{baseUrl}}"], "path": ["api", "uploads"] }
+            "url": {
+              "raw": "{{baseUrl}}/api/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "uploads"
+              ]
+            }
           },
           "description": "In Postman, open the Body tab and select a real file for the 'file' field before sending. Allowed types: JPEG, PNG, WebP, PDF, max 10MB. Response is { \"url\": \"...\" } — use that URL in profileImage/coverImage/fileUrl/galleryImages fields elsewhere. This is the PUBLIC bucket — do NOT use it for KYC documents, use Provider > Upload KYC Document (Private) instead. Swap {{accessToken}} for {{providerAccessToken}} or {{adminAccessToken}} depending on which account you're uploading as."
         }

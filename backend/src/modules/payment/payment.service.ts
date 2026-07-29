@@ -6,6 +6,7 @@ import { env } from "../../config/env";
 import { z } from "zod";
 import { payBillSchema, payBookingSchema, withdrawSchema } from "./payment.schemas";
 import { getPlatformSettings } from "../platform/platform.service";
+import { notify, NotificationType } from "../notification/notification.service";
 
 type PayBookingInput = z.infer<typeof payBookingSchema>;
 type WithdrawInput = z.infer<typeof withdrawSchema>;
@@ -65,14 +66,28 @@ export async function createOfflineBill(
   commissionAmount: number,
 ) {
   const dueAt = new Date(Date.now() + OFFLINE_BILL_GRACE_DAYS * 24 * 60 * 60 * 1000);
-  return prisma.offlinePaymentBill.create({
+  const bill = await prisma.offlinePaymentBill.create({
     data: { providerProfileId, bookingId, sourceType, amount: commissionAmount, dueAt },
   });
+  const providerProfile = await prisma.providerProfile.findUniqueOrThrow({
+    where: { id: providerProfileId },
+    select: { userId: true },
+  });
+  await notify(
+    providerProfile.userId,
+    NotificationType.BILL_CREATED,
+    `A platform commission bill of $${commissionAmount} is due within ${OFFLINE_BILL_GRACE_DAYS} days`,
+    bookingId,
+  );
+  return bill;
 }
 
 export async function payForBooking(userId: string, bookingId: string, input: PayBookingInput) {
   const customerProfile = await getCustomerProfileOrThrow(userId);
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { payment: true } });
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { payment: true, providerProfile: true },
+  });
   if (!booking || booking.customerId !== customerProfile.id) {
     throw new AppError(404, "Booking not found");
   }
@@ -94,6 +109,12 @@ export async function payForBooking(userId: string, bookingId: string, input: Pa
     });
     const { commission } = await calculateCommission(amount);
     const bill = await createOfflineBill(booking.providerProfileId, bookingId, "BOOKING_PAYMENT", commission);
+    await notify(
+      booking.providerProfile.userId,
+      NotificationType.PAYMENT_RECEIVED,
+      `The customer paid offline for booking "${bookingId}"`,
+      bookingId,
+    );
     return { payment, disclaimer: OFFLINE_PAYMENT_DISCLAIMER, amountDue: amount, platformBill: bill };
   }
 
@@ -135,6 +156,13 @@ export async function payForBooking(userId: string, bookingId: string, input: Pa
     throw new AppError(402, `Payment failed: PaymentIntent ended in unexpected status "${intent.status}"`);
   }
 
+  await notify(
+    booking.providerProfile.userId,
+    NotificationType.PAYMENT_RECEIVED,
+    "Payment received and held in escrow for your booking",
+    bookingId,
+  );
+
   return payment;
 }
 
@@ -148,9 +176,15 @@ export async function releasePayment(bookingId: string) {
   await stripe.paymentIntents.capture(payment.transactionRef!);
   await prisma.payment.update({ where: { bookingId }, data: { status: "RELEASED" } });
 
-  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { providerProfile: true } });
   const { net } = await calculateCommission(Number(payment.amount));
   await creditProviderBalance(booking.providerProfileId, net);
+  await notify(
+    booking.providerProfile.userId,
+    NotificationType.PAYMENT_RELEASED,
+    "Funds have been released to your balance for a completed booking",
+    bookingId,
+  );
 }
 
 /** Escrow -> Refunded, called when a booking is CANCELLED (FR11/FR12 status sync). No-op if unpaid. */
@@ -162,6 +196,9 @@ export async function refundPayment(bookingId: string) {
   const stripe = getStripeClient();
   await stripe.paymentIntents.cancel(payment.transactionRef!);
   await prisma.payment.update({ where: { bookingId }, data: { status: "REFUNDED" } });
+
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { customer: true } });
+  await notify(booking.customer.userId, NotificationType.PAYMENT_REFUNDED, "Your payment has been refunded for a cancelled booking", bookingId);
 }
 
 /**
@@ -189,9 +226,15 @@ export async function refundPaymentForDispute(bookingId: string) {
     await stripe.refunds.create({ payment_intent: payment.transactionRef! });
     await prisma.payment.update({ where: { bookingId }, data: { status: "REFUNDED" } });
 
-    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { customer: true } });
     const { net } = await calculateCommission(Number(payment.amount));
     await creditProviderBalance(booking.providerProfileId, -net);
+    await notify(
+      booking.customer.userId,
+      NotificationType.PAYMENT_REFUNDED,
+      "Your payment has been refunded following a dispute resolution",
+      bookingId,
+    );
   }
 }
 

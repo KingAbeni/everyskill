@@ -36,3 +36,15 @@ adminRouter.get("/disputes", asyncHandler(adminController.listDisputesHandler));
 adminRouter.get("/disputes/:disputeId", asyncHandler(adminController.getDisputeHandler));
 adminRouter.patch("/disputes/:disputeId/review", asyncHandler(adminController.markDisputeUnderReviewHandler));
 adminRouter.patch("/disputes/:disputeId/resolve", asyncHandler(adminController.resolveDisputeHandler));
+
+// Reporting & moderation (FR18).
+adminRouter.get("/reports", asyncHandler(adminController.listReportsHandler));
+adminRouter.get("/reports/:reportId", asyncHandler(adminController.getReportHandler));
+adminRouter.patch("/reports/:reportId/review", asyncHandler(adminController.markReportReviewedHandler));
+adminRouter.patch("/reports/:reportId/action", asyncHandler(adminController.actionReportHandler));
+
+// Notifications (FR15) — admins receive REPORT_FILED notifications (FR18), so they need a way to read them too.
+adminRouter.get("/notifications", asyncHandler(adminController.listNotificationsHandler));
+adminRouter.get("/notifications/unread-count", asyncHandler(adminController.getNotificationsUnreadCountHandler));
+adminRouter.patch("/notifications/read-all", asyncHandler(adminController.markAllNotificationsReadHandler));
+adminRouter.patch("/notifications/:notificationId/read", asyncHandler(adminController.markNotificationReadHandler));

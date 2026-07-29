@@ -37,6 +37,9 @@ export const env = {
   groq: {
     apiKey: process.env.GROQ_API_KEY,
     model: process.env.GROQ_MODEL ?? "llama-3.1-8b-instant",
+    // FR20 — vision-capable model, distinct from the text-only model above. Override in .env if
+    // your account/tier supports a different Groq vision model id.
+    visionModel: process.env.GROQ_VISION_MODEL ?? "qwen/qwen3.6-27b",
   },
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY,

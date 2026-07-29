@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import { prisma } from "../config/prisma";
+import { notify, NotificationType } from "../modules/notification/notification.service";
 
 /**
  * Finds offline-payment commission bills past their due date, marks them OVERDUE, and
@@ -25,6 +26,12 @@ export async function suspendOverdueProviders(): Promise<number> {
       where: { id: bill.providerProfile.userId },
       data: { status: "SUSPENDED" },
     });
+    await notify(
+      bill.providerProfile.userId,
+      NotificationType.ACCOUNT_SUSPENDED,
+      "Your account was suspended for an overdue platform commission bill. Pay your bill to be reactivated.",
+      bill.bookingId,
+    );
   }
 
   return overdueBills.length;

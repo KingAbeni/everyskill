@@ -5,6 +5,7 @@ import { z } from "zod";
 import { listDisputesQuerySchema, openDisputeSchema, resolveDisputeSchema } from "./dispute.schemas";
 import * as bookingService from "../booking/booking.service";
 import { releasePayment, refundPaymentForDispute } from "../payment/payment.service";
+import { notify, NotificationType } from "../notification/notification.service";
 
 type OpenDisputeInput = z.infer<typeof openDisputeSchema>;
 type ResolveDisputeInput = z.infer<typeof resolveDisputeSchema>;
@@ -32,7 +33,11 @@ async function getProviderProfileOrThrow(userId: string) {
   return profile;
 }
 
-async function openDispute(booking: { id: string; status: BookingStatus }, userId: string, input: OpenDisputeInput) {
+async function openDispute(
+  booking: { id: string; status: BookingStatus; customerId: string; providerProfileId: string },
+  userId: string,
+  input: OpenDisputeInput,
+) {
   if (!DISPUTABLE_STATUSES.includes(booking.status)) {
     throw new AppError(409, `Cannot open a dispute for a booking in status ${booking.status}`);
   }
@@ -45,6 +50,14 @@ async function openDispute(booking: { id: string; status: BookingStatus }, userI
     data: { bookingId: booking.id, raisedById: userId, reason: input.reason },
   });
   await bookingService.transitionToDisputed(booking.id, userId);
+
+  const [customerProfile, providerProfile] = await Promise.all([
+    prisma.customerProfile.findUniqueOrThrow({ where: { id: booking.customerId }, select: { userId: true } }),
+    prisma.providerProfile.findUniqueOrThrow({ where: { id: booking.providerProfileId }, select: { userId: true } }),
+  ]);
+  const recipientUserId = userId === customerProfile.userId ? providerProfile.userId : customerProfile.userId;
+  await notify(recipientUserId, NotificationType.DISPUTE_OPENED, "A dispute has been opened for your booking", booking.id);
+
   return dispute;
 }
 
@@ -94,7 +107,10 @@ export async function markUnderReview(disputeId: string) {
 }
 
 export async function resolveDispute(adminUserId: string, disputeId: string, input: ResolveDisputeInput) {
-  const dispute = await prisma.dispute.findUnique({ where: { id: disputeId } });
+  const dispute = await prisma.dispute.findUnique({
+    where: { id: disputeId },
+    include: { booking: { include: { customer: true, providerProfile: true } } },
+  });
   if (!dispute) {
     throw new AppError(404, "Dispute not found");
   }
@@ -112,7 +128,7 @@ export async function resolveDispute(adminUserId: string, disputeId: string, inp
     await refundPaymentForDispute(dispute.bookingId);
   }
 
-  return prisma.dispute.update({
+  const updated = await prisma.dispute.update({
     where: { id: disputeId },
     data: {
       status: input.decision === "DISMISS" ? "REJECTED" : "RESOLVED",
@@ -121,4 +137,20 @@ export async function resolveDispute(adminUserId: string, disputeId: string, inp
       resolvedAt: new Date(),
     },
   });
+
+  const outcomeText =
+    input.decision === "DISMISS"
+      ? "dismissed — the booking was marked completed"
+      : input.decision === "RELEASE_PROVIDER"
+        ? "resolved in the provider's favor — payment released"
+        : "resolved in the customer's favor — payment refunded";
+  await notify(dispute.booking.customer.userId, NotificationType.DISPUTE_RESOLVED, `Your dispute was ${outcomeText}`, dispute.bookingId);
+  await notify(
+    dispute.booking.providerProfile.userId,
+    NotificationType.DISPUTE_RESOLVED,
+    `The dispute for your booking was ${outcomeText}`,
+    dispute.bookingId,
+  );
+
+  return updated;
 }

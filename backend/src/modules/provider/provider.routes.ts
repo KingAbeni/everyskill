@@ -20,10 +20,15 @@ providerRouter.get("/me/kyc/:kycId/document-url", asyncHandler(providerControlle
 
 providerRouter.get("/me/listings", asyncHandler(providerController.listMyListingsHandler));
 providerRouter.post("/me/listings/recommend-category", asyncHandler(providerController.recommendCategoryHandler));
+providerRouter.post("/me/listings/recommend-category-from-image", asyncHandler(providerController.recommendCategoryFromImageHandler));
+providerRouter.post("/me/listings/analyze-image", asyncHandler(providerController.analyzeListingImageHandler));
 providerRouter.post("/me/listings", asyncHandler(providerController.createMyListingHandler));
 providerRouter.get("/me/listings/:listingId", asyncHandler(providerController.getMyListingHandler));
 providerRouter.patch("/me/listings/:listingId", asyncHandler(providerController.updateMyListingHandler));
 providerRouter.delete("/me/listings/:listingId", asyncHandler(providerController.deleteMyListingHandler));
+providerRouter.get("/me/listings/:listingId/completeness", asyncHandler(providerController.getListingCompletenessHandler));
+providerRouter.post("/me/listings/:listingId/improve-description", asyncHandler(providerController.improveListingDescriptionHandler));
+providerRouter.post("/me/listings/:listingId/suggest-keywords", asyncHandler(providerController.suggestListingKeywordsHandler));
 
 providerRouter.get("/me/availability", asyncHandler(providerController.listMyAvailabilityHandler));
 providerRouter.post("/me/availability", asyncHandler(providerController.createMyAvailabilitySlotHandler));
@@ -56,3 +61,15 @@ providerRouter.get("/me/withdrawals", asyncHandler(providerController.listMyWith
 
 providerRouter.get("/me/bills", asyncHandler(providerController.listMyBillsHandler));
 providerRouter.post("/me/bills/:billId/pay", asyncHandler(providerController.payMyBillHandler));
+
+providerRouter.get("/me/notifications", asyncHandler(providerController.listNotificationsHandler));
+providerRouter.get("/me/notifications/unread-count", asyncHandler(providerController.getNotificationsUnreadCountHandler));
+providerRouter.patch("/me/notifications/read-all", asyncHandler(providerController.markAllNotificationsReadHandler));
+providerRouter.patch("/me/notifications/:notificationId/read", asyncHandler(providerController.markNotificationReadHandler));
+
+providerRouter.get("/me/reviews", asyncHandler(providerController.listMyReviewsHandler));
+providerRouter.patch("/me/reviews/:reviewId/reply", asyncHandler(providerController.replyToReviewHandler));
+
+providerRouter.get("/me/bookings/:bookingId/documentation", asyncHandler(providerController.listDocumentationHandler));
+providerRouter.post("/me/bookings/:bookingId/documentation", asyncHandler(providerController.submitProviderDocumentationHandler));
+providerRouter.post("/me/bookings/:bookingId/documentation/compare", asyncHandler(providerController.compareBeforeAfterHandler));
