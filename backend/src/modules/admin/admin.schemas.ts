@@ -27,3 +27,13 @@ export const forceResetAdminPasswordSchema = z.object({
 export const updatePlatformSettingsSchema = z.object({
   commissionPercent: z.number().min(0).max(100),
 });
+
+export const listUsersQuerySchema = z.object({
+  role: z.enum(["CUSTOMER", "PROVIDER", "ADMIN", "SUPER_ADMIN"]).optional(),
+  status: z.enum(["ACTIVE", "SUSPENDED", "BANNED"]).optional(),
+});
+
+export const listAuditLogQuerySchema = z.object({
+  action: z.string().min(1).optional(),
+  targetType: z.string().min(1).optional(),
+});

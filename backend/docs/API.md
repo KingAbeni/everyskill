@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Dashboard (FR23)** (adds a users list, a platform-wide reviews list, an audit-log endpoint, and platform analytics — none of which existed before), **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -562,6 +562,44 @@ Directly sets the target account's password — no email/token round-trip. Only 
 Errors: `404 { "error": "Admin account not found" }` if the id doesn't exist or isn't an `ADMIN`/`SUPER_ADMIN`.
 
 Note: the ordinary self-service flow (`POST /api/auth/forgot-password` + `POST /api/auth/reset-password`, described in the Auth Module above) also works unchanged for `ADMIN`/`SUPER_ADMIN` accounts — it's keyed by email regardless of role. This endpoint is only for a *super-admin acting on someone else's account*.
+
+### Administrator Dashboard (FR23)
+
+Four new standalone endpoints (ADMIN/SUPER_ADMIN, same as the rest of this module — no narrower `SUPER_ADMIN`-only gate, matching KYC/Disputes/Reports), plus one aggregation endpoint over all eight of FR23's bullets (Users, Verification, Reviews, Categories, Reports, Disputes, Analytics, Audit log).
+
+**GET** `/api/admin/users` — every account across all roles. Optional `?role=CUSTOMER|PROVIDER|ADMIN|SUPER_ADMIN` and `?status=ACTIVE|SUSPENDED|BANNED` filters, combinable. Response `200`: array of `{ id, email, role, status, warningCount, emailVerified, createdAt, customerProfile: { firstName, lastName } | null, providerProfile: { displayName, verificationStatus } | null }`. No more PII than KYC review (FR4) already exposes to admins.
+
+**GET** `/api/admin/reviews` → `200` — every review platform-wide, newest first (same shape as the customer/provider/listing review endpoints from FR16, but unfiltered).
+
+**GET** `/api/admin/audit-log` → `200` — the `AuditLog` trail (every `KYC_REVIEW`, `ADMIN_ACCOUNT_CREATED`, `ADMIN_PASSWORD_FORCE_RESET`, `USER_REACTIVATED`, `REPORT_WARN`/`REPORT_SUSPEND`/`REPORT_BAN` entry written across this backend), newest first, each including `actor: { id, email, role }`. Optional `?action=` and `?targetType=` exact-match filters. **Capped at 100 rows** — unlike this codebase's other "list mine" endpoints, an audit log is an ever-growing history, not a small owned collection.
+
+**GET** `/api/admin/analytics` → `200`:
+```json
+{
+  "users": { "total": 13, "byRole": { "CUSTOMER": 4, "PROVIDER": 7, "ADMIN": 1, "SUPER_ADMIN": 1 }, "byStatus": { "ACTIVE": 13 } },
+  "bookings": { "total": 1, "byStatus": { "DISPUTED": 1 } },
+  "revenue": { "grossReleasedPaymentVolume": 60, "estimatedCommissionCollected": 6, "releasedPaymentCount": 1 },
+  "reports": { "total": 1, "byStatus": { "PENDING": 1 } },
+  "disputes": { "total": 1, "byStatus": { "OPEN": 1 } },
+  "reviews": { "total": 1, "averageRating": 3 }
+}
+```
+Platform-wide counts — deliberately simple derived numbers, not FR25's territory (no time-series/charts). **`revenue.estimatedCommissionCollected` is an approximation**: `Payment` only stores the gross amount, not the commission actually taken at capture time, so this recomputes using the *current* commission percent (FR24 "Commissions"). If the commission percent has ever changed, historical payments are misrepresented by this estimate — documented honestly rather than silently presented as exact.
+
+**GET** `/api/admin/dashboard` → `200` — one aggregation over everything above:
+```json
+{
+  "users": { "recent": ["...5 most recent accounts"], "total": 13, "byRole": {...}, "byStatus": {...} },
+  "verification": { "pendingCount": 3, "recentPending": ["...5 oldest-first pending KycVerification rows"] },
+  "reviews": { "recent": ["...5 most recent"], "total": 1, "averageRating": 3 },
+  "categories": ["...all, same as GET /api/categories"],
+  "reports": { "recent": ["...5 most recent"], "total": 1, "byStatus": {...} },
+  "disputes": { "recent": ["...5 most recent"], "total": 1, "byStatus": {...} },
+  "analytics": { "...": "same shape as GET /api/admin/analytics" },
+  "auditLog": { "recent": ["...10 most recent entries"] }
+}
+```
+`recent` lists are capped (5 each, 10 for the audit log) — a dashboard glance, not a data dump, same choice made for FR21/FR22. All counts/breakdowns are sourced from the same `getPlatformAnalytics()` that powers the standalone `/analytics` endpoint, so the dashboard and that endpoint can never disagree.
 
 ---
 

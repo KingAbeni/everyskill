@@ -7,7 +7,9 @@ import * as notificationService from "../notification/notification.service";
 import {
   createAdminSchema,
   forceResetAdminPasswordSchema,
+  listAuditLogQuerySchema,
   listKycQuerySchema,
+  listUsersQuerySchema,
   reviewKycSchema,
   updatePlatformSettingsSchema,
 } from "./admin.schemas";
@@ -107,6 +109,33 @@ export async function actionReportHandler(req: Request, res: Response) {
   const input = actionReportSchema.parse(req.body);
   const report = await reportService.actionReport(req.user!.sub, req.params.reportId, input);
   res.status(200).json(report);
+}
+
+export async function listUsersHandler(req: Request, res: Response) {
+  const query = listUsersQuerySchema.parse(req.query);
+  const users = await adminService.listUsers(query);
+  res.status(200).json(users);
+}
+
+export async function listReviewsHandler(req: Request, res: Response) {
+  const reviews = await adminService.listReviewsForAdmin();
+  res.status(200).json(reviews);
+}
+
+export async function listAuditLogHandler(req: Request, res: Response) {
+  const query = listAuditLogQuerySchema.parse(req.query);
+  const entries = await adminService.listAuditLog(query);
+  res.status(200).json(entries);
+}
+
+export async function getAnalyticsHandler(req: Request, res: Response) {
+  const analytics = await adminService.getPlatformAnalytics();
+  res.status(200).json(analytics);
+}
+
+export async function getDashboardHandler(req: Request, res: Response) {
+  const dashboard = await adminService.getDashboard();
+  res.status(200).json(dashboard);
 }
 
 export async function listNotificationsHandler(req: Request, res: Response) {
