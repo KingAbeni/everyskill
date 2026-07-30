@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Dashboard (FR23)** (adds a users list, a platform-wide reviews list, an audit-log endpoint, and platform analytics — none of which existed before), **Administrator Management** and **Super Administrator Dashboard (FR24)** (a GDPR-activity aggregate, plus honest read-only status summaries for escrow/payment-gateway/AI/localization "settings" that aren't real configurable systems — Countries and Security logs deliberately omitted as having no underlying concept at all), **Reports & Analytics (FR25)** (nine distinct endpoints, mostly genuine time-series with configurable date range/granularity, per direct request), and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Dashboard (FR23)** (adds a users list, a platform-wide reviews list, an audit-log endpoint, and platform analytics — none of which existed before), **Administrator Management** and **Super Administrator Dashboard (FR24)** (a GDPR-activity aggregate, plus honest read-only status summaries for escrow/payment-gateway/AI/localization "settings" that aren't real configurable systems — Countries and Security logs deliberately omitted as having no underlying concept at all), **Reports & Analytics (FR25)** (nine distinct endpoints, mostly genuine time-series with configurable date range/granularity, per direct request), **Promotions & Marketing (FR26)** (discounts auto-apply, coupons require an explicit code and take priority, campaigns are informational-only — per direct request; coupon codes are deliberately excluded from all public API responses), and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -878,7 +878,9 @@ No auth required. Only listings with `isActive: true` are returned.
 
 ### Search / browse listings
 
-**GET** `/api/listings` → `200` — array of listings, each including its `categories` array and a summary of the owning `providerProfile` (`id`, `displayName`, `providerType`, `verificationStatus`, `profileImage`, `serviceArea`, `latitude`, `longitude`), newest first (or by distance — see below).
+**GET** `/api/listings` → `200` — array of listings, each including its `categories` array and a summary of the owning `providerProfile` (`id`, `displayName`, `providerType`, `verificationStatus`, `profileImage`, `serviceArea`, `latitude`, `longitude`, plus `averageRating`/`reviewCount` from FR16 and `activePromotions` from FR26 — see below), newest first (or by distance — see below).
+
+`providerProfile.activePromotions` is an array of currently-active `DISCOUNT`/`CAMPAIGN` `Promotion` rows for that provider (see **Promotions & Marketing (FR26)** below) — `COUPON`-type promotions are never included here, since a coupon code must be told to the customer out-of-band, not discoverable by browsing.
 
 Optional query params, all combinable:
 | Param | Matches FR9 bullet | Notes |
@@ -1022,10 +1024,11 @@ Requires `Authorization: Bearer <accessToken>` for a **CUSTOMER** account.
 ```json
 {
   "listingId": "listing-uuid",
-  "scheduledAt": "2026-08-10T09:00:00.000Z"
+  "scheduledAt": "2026-08-10T09:00:00.000Z",
+  "couponCode": "SAVE15"
 }
 ```
-`price` is copied from the listing at booking time (a snapshot — later listing price changes don't retroactively affect existing bookings). Response `201`, status starts as `REQUESTED`.
+`price` is copied from the listing at booking time (a snapshot — later listing price changes don't retroactively affect existing bookings), then FR26 promotions are resolved: `couponCode` (optional) is checked against the provider's active `COUPON` promotions; if omitted (or if you don't supply one), the single best active `DISCOUNT` promotion for that provider (if any) is applied automatically instead — see **Promotions & Marketing (FR26)** below for the full resolution order. If a promotion applied, the response's `originalPrice` holds the pre-discount amount and `appliedPromotionId` names which one; otherwise both are `null` and `price` is unchanged from the listing. Response `201`, status starts as `REQUESTED`.
 
 Errors:
 | Status | Body | Cause |
@@ -1035,6 +1038,8 @@ Errors:
 | `400` | `{ "error": "scheduledAt must be in the future" }` | Requested time is in the past |
 | `400` | `{ "error": "Requested time is outside the provider's declared availability" }` | No open `AvailabilitySlot` covers the full requested time range, or a blocked one intersects it |
 | `409` | `{ "error": "This time conflicts with an existing booking for this provider" }` | Overlaps another active booking for the same provider |
+| `400` | `{ "error": "Invalid or expired coupon code" }` | `couponCode` given but doesn't match any active `COUPON` promotion for this provider |
+| `400` | `{ "error": "This coupon has reached its redemption limit" }` | `couponCode` is valid but `maxRedemptions` has already been hit |
 
 **GET** `/api/customers/me/bookings/:bookingId` → `200` — one booking including `statusHistory`. Errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours.
 
@@ -1517,6 +1522,58 @@ Every WARN/SUSPEND/BAN action also writes an `AuditLog` entry (`action: "REPORT_
 Filing a report notifies all admins (see above) — but until this FR, `ADMIN`/`SUPER_ADMIN` had **no way to read their own notifications at all** (only the customer/provider routers exposed `.../me/notifications*`). Fixed by adding the identical four endpoints under `/api/admin`: `GET /api/admin/notifications`, `GET /api/admin/notifications/unread-count`, `PATCH /api/admin/notifications/read-all`, `PATCH /api/admin/notifications/:notificationId/read`.
 
 **Not yet implemented / known limitations** (documented honestly): `warningCount` has no automatic consequence (unlike FR13's violation counter, which auto-suspends at 3) — an admin has to eyeball it and decide when to escalate to `SUSPEND`/`BAN` themselves. `BAN` has no dedicated unban endpoint — `PATCH /api/admin/users/:userId/reactivate` only lifts `SUSPENDED` (`409` on a `BANNED` account), so unbanning currently requires a direct DB update; this is intentional (a ban is meant to be a heavier, less casually-reversed action than a suspension) but worth knowing.
+
+---
+
+## Promotions & Marketing (FR26)
+
+The SRS's three bullets — Discounts, Campaigns, Coupon codes — map onto `Promotion.type` (`DISCOUNT | CAMPAIGN | COUPON`). A `Promotion` belongs to a **provider**, not a specific listing (that's how the model was originally scaffolded — no `listingId` field exists), so a promotion applies across everything that provider sells. Per direct request, the three types behave differently:
+
+| Type | Behavior |
+|---|---|
+| `DISCOUNT` | **Automatic.** While active, every new booking for that provider gets the single best (largest) active discount applied — no customer action needed. |
+| `COUPON` | **Never automatic.** The customer must submit `code` as `couponCode` on `POST /api/customers/me/bookings` (see **Booking Management (FR11)** above). A supplied coupon **overrides** any auto-applying `DISCOUNT` — explicit customer intent wins. |
+| `CAMPAIGN` | **Informational only.** Never affects price — just a marketing banner/announcement (`details: { title, description?, bannerImageUrl? }`). |
+
+### Manage my promotions — `/api/providers/me/promotions`
+
+Requires `Authorization: Bearer <accessToken>` for a **PROVIDER** account.
+
+**POST** `/api/providers/me/promotions`:
+```json
+{ "type": "DISCOUNT", "details": { "percentOff": 20 }, "validFrom": "2026-08-01T00:00:00Z", "validTo": "2026-08-31T00:00:00Z" }
+```
+or
+```json
+{ "type": "COUPON", "code": "SAVE15", "details": { "amountOff": 15 }, "maxRedemptions": 50, "validFrom": "...", "validTo": "..." }
+```
+or
+```json
+{ "type": "CAMPAIGN", "details": { "title": "Summer Special", "description": "Book now!" }, "validFrom": "...", "validTo": "..." }
+```
+`type` is required and picks which shape `details` (and the rest of the body) must match — a discriminated request, validated accordingly:
+- `DISCOUNT`/`COUPON`: `details` must have **exactly one** of `percentOff` (`1`–`100`) or `amountOff` (a positive amount) — `400` if both or neither are given. `maxRedemptions` is optional (omit for unlimited use). `COUPON` additionally requires `code` (min 3 chars) — `DISCOUNT` must not have one (it's automatic, there's nothing to "enter").
+- `CAMPAIGN`: `details` must have `title` (required), `description`/`bannerImageUrl` (both optional, the latter must be a real URL).
+
+All three require `validFrom < validTo` (`400` otherwise). Response `201`. Creating any promotion notifies every customer who has this provider favorited (`FavoriteProvider`, FR2) with `PROMOTION_LAUNCHED` (FR15) — closes that FR15 doc's long-standing "Promotions notification kinds are absent" gap.
+
+**GET** `/api/providers/me/promotions` → `200` — all of your promotions (any type, active or not), newest first.
+
+**PATCH** `/api/providers/me/promotions/:promotionId` — any subset of `details`, `validFrom`, `validTo`, `isActive`, `maxRedemptions` (pass `null` to clear back to unlimited). **`type` and `code` are immutable after creation** — matches how `ServiceDocumentation.kind`/`Report.targetType` are treated elsewhere; create a new promotion instead of trying to convert one type into another. Response `200`. Errors: `404` for unknown/not-yours; `400` if the resulting `validFrom`/`validTo` would be invalid.
+
+**DELETE** `/api/providers/me/promotions/:promotionId` → `204`. **Blocked (`409`) if the promotion has ever been redeemed** (`timesRedeemed > 0`) — same child-count-guard pattern as `category.service.ts`'s category deletion. Use `PATCH { "isActive": false }` instead to retire a promotion that's already been used; deletion is only for ones nobody has redeemed yet.
+
+### Booking-time resolution order
+
+1. `couponCode` supplied on `POST /api/customers/me/bookings`? Look up an active, in-date-range, non-exhausted `COUPON` for that provider matching the code exactly. Not found/expired/exhausted → `400` (explicit rejection — the customer opted in, so it's never silently ignored). Found → apply it, **skip step 2 entirely**.
+2. No `couponCode` given: look up all active, in-date-range, non-exhausted `DISCOUNT` promotions for that provider. None → booking proceeds at the listing's normal price. One or more → apply the single one with the largest computed discount amount.
+3. If a promotion was applied (either step): `Booking.originalPrice` is set to the pre-discount amount, `Booking.appliedPromotionId` names it, `Booking.price` becomes the discounted amount (floored at `0`), and the promotion's `timesRedeemed` is incremented — all inside the same transaction as booking creation, so a redemption-cap race can't double-spend the last slot.
+
+### Public visibility
+
+Every listing search result's `providerProfile` summary (`GET /api/listings`, `GET /api/listings/:listingId`, `POST /api/listings/ai-search`) carries `activePromotions` — the provider's currently-active `DISCOUNT`/`CAMPAIGN` promotions, computed via one batched query per search (same pattern as FR16's `averageRating`/`reviewCount`, no N+1). **`COUPON` promotions are never included here** — a code has to be told to the customer out-of-band (an email, a social post, printed on a flyer); exposing valid codes through the public search API would let anyone redeem them without ever being given the code, defeating the entire point.
+
+**Not yet implemented / known limitations** (documented honestly): a promotion is provider-wide, not listing-specific — there's no way to discount only one of a provider's several listings without adding a `listingId` column (out of scope for this pass). No admin-facing moderation of promotion content (a provider could in principle write anything into a `CAMPAIGN`'s `details`; FR18's reporting can still be used against a `USER`/`LISTING` if a promotion is abused, but there's no direct `Promotion` report target type).
 
 ---
 

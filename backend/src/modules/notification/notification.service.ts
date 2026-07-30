@@ -8,7 +8,7 @@ type ListNotificationsQuery = z.infer<typeof listNotificationsQuerySchema>;
 /**
  * Every notification "kind" this platform raises (FR15). Kept as a plain string union rather than
  * a Prisma enum, since Notification.type is a free-text column — new kinds can be added here
- * without a migration. Promotions kinds are intentionally absent until FR26 exists.
+ * without a migration.
  */
 export const NotificationType = {
   BOOKING_REQUESTED: "BOOKING_REQUESTED",
@@ -37,6 +37,7 @@ export const NotificationType = {
   ACCOUNT_BANNED: "ACCOUNT_BANNED",
   ACCOUNT_SUSPENDED: "ACCOUNT_SUSPENDED",
   ACCOUNT_REACTIVATED: "ACCOUNT_REACTIVATED",
+  PROMOTION_LAUNCHED: "PROMOTION_LAUNCHED",
 } as const;
 
 export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];

@@ -8,6 +8,7 @@ import * as availabilityService from "../availability/availability.service";
 import * as paymentService from "../payment/payment.service";
 import { notify, NotificationType } from "../notification/notification.service";
 import { assertCompletionDocumentationExists } from "../documentation/documentation.service";
+import { buildRedemptionIncrementQuery, resolveBookingPromotion } from "../promotion/promotion.service";
 
 type CreateBookingInput = z.infer<typeof createBookingSchema>;
 type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
@@ -104,6 +105,10 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
     throw new AppError(409, "This time conflicts with an existing booking for this provider");
   }
 
+  const listingPrice = Number(listing.price);
+  const appliedPromotion = await resolveBookingPromotion(listing.providerProfileId, listingPrice, input.couponCode);
+  const finalPrice = appliedPromotion ? Math.max(0, listingPrice - appliedPromotion.discountAmount) : listingPrice;
+
   const bookingId = crypto.randomUUID();
   const [booking] = await prisma.$transaction([
     prisma.booking.create({
@@ -113,7 +118,9 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
         providerProfileId: listing.providerProfileId,
         listingId: listing.id,
         scheduledAt: input.scheduledAt,
-        price: listing.price,
+        price: finalPrice,
+        originalPrice: appliedPromotion ? listingPrice : null,
+        appliedPromotionId: appliedPromotion?.promotionId ?? null,
       },
       include: bookingInclude,
     }),
@@ -121,6 +128,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
       data: { bookingId, fromStatus: null, toStatus: "REQUESTED", changedById: userId },
     }),
     prisma.conversation.create({ data: { bookingId } }),
+    ...(appliedPromotion ? [buildRedemptionIncrementQuery(appliedPromotion.promotionId)] : []),
   ]);
 
   await notify(

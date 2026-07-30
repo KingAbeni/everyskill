@@ -74,3 +74,8 @@ providerRouter.patch("/me/reviews/:reviewId/reply", asyncHandler(providerControl
 providerRouter.get("/me/bookings/:bookingId/documentation", asyncHandler(providerController.listDocumentationHandler));
 providerRouter.post("/me/bookings/:bookingId/documentation", asyncHandler(providerController.submitProviderDocumentationHandler));
 providerRouter.post("/me/bookings/:bookingId/documentation/compare", asyncHandler(providerController.compareBeforeAfterHandler));
+
+providerRouter.get("/me/promotions", asyncHandler(providerController.listMyPromotionsHandler));
+providerRouter.post("/me/promotions", asyncHandler(providerController.createPromotionHandler));
+providerRouter.patch("/me/promotions/:promotionId", asyncHandler(providerController.updatePromotionHandler));
+providerRouter.delete("/me/promotions/:promotionId", asyncHandler(providerController.deletePromotionHandler));

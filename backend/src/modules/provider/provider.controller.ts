@@ -11,6 +11,7 @@ import * as messageService from "../message/message.service";
 import * as notificationService from "../notification/notification.service";
 import * as reviewService from "../review/review.service";
 import * as documentationService from "../documentation/documentation.service";
+import * as promotionService from "../promotion/promotion.service";
 import { createCertificationSchema, submitKycDocumentSchema, updateProviderProfileSchema } from "./provider.schemas";
 import {
   analyzeImageSchema,
@@ -29,6 +30,7 @@ import { sendMessageSchema } from "../message/message.schemas";
 import { listNotificationsQuerySchema } from "../notification/notification.schemas";
 import { replyToReviewSchema } from "../review/review.schemas";
 import { submitProviderDocumentationSchema } from "../documentation/documentation.schemas";
+import { createPromotionSchema, updatePromotionSchema } from "../promotion/promotion.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await providerService.getMyProfile(req.user!.sub);
@@ -319,4 +321,26 @@ export async function listDocumentationHandler(req: Request, res: Response) {
 export async function compareBeforeAfterHandler(req: Request, res: Response) {
   const result = await documentationService.compareBeforeAfterAsProvider(req.user!.sub, req.params.bookingId);
   res.status(200).json(result);
+}
+
+export async function createPromotionHandler(req: Request, res: Response) {
+  const input = createPromotionSchema.parse(req.body);
+  const promotion = await promotionService.createPromotion(req.user!.sub, input);
+  res.status(201).json(promotion);
+}
+
+export async function listMyPromotionsHandler(req: Request, res: Response) {
+  const promotions = await promotionService.listMyPromotions(req.user!.sub);
+  res.status(200).json(promotions);
+}
+
+export async function updatePromotionHandler(req: Request, res: Response) {
+  const input = updatePromotionSchema.parse(req.body);
+  const promotion = await promotionService.updatePromotion(req.user!.sub, req.params.promotionId, input);
+  res.status(200).json(promotion);
+}
+
+export async function deletePromotionHandler(req: Request, res: Response) {
+  await promotionService.deletePromotion(req.user!.sub, req.params.promotionId);
+  res.status(204).send();
 }

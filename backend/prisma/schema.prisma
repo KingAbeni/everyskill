@@ -355,6 +355,9 @@ model Booking {
   status            BookingStatus   @default(REQUESTED)
   scheduledAt       DateTime
   price             Decimal
+  originalPrice      Decimal?
+  appliedPromotionId String?
+  appliedPromotion   Promotion?     @relation(fields: [appliedPromotionId], references: [id])
   cancelledAt       DateTime?
   cancellationReason String?
   noShowBy          NoShowParty?
@@ -582,6 +585,11 @@ model Promotion {
   validFrom         DateTime
   validTo           DateTime
   isActive          Boolean         @default(true)
+  maxRedemptions    Int?
+  timesRedeemed     Int             @default(0)
+  createdAt         DateTime        @default(now())
+
+  bookings          Booking[]
 }
 
 // ---------- Admin / audit ----------

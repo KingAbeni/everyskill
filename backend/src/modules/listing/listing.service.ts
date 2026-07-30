@@ -22,6 +22,7 @@ import {
 } from "../../config/groq";
 import { getProviderRatingSummaries } from "../review/review.service";
 import { autoFlagImageIfSuspicious } from "../report/report.service";
+import { getActivePromotionsForProviders } from "../promotion/promotion.service";
 
 type ListPublicQuery = z.infer<typeof listPublicListingsQuerySchema>;
 type CreateListingInput = z.infer<typeof createListingSchema>;
@@ -106,12 +107,17 @@ export async function listPublicListings(query: ListPublicQuery) {
     orderBy: { createdAt: "desc" },
   });
 
-  const ratingSummaries = await getProviderRatingSummaries(listings.map((l) => l.providerProfile.id));
+  const providerIds = listings.map((l) => l.providerProfile.id);
+  const [ratingSummaries, activePromotions] = await Promise.all([
+    getProviderRatingSummaries(providerIds),
+    getActivePromotionsForProviders(providerIds),
+  ]);
   let withRatings = listings.map((listing) => ({
     ...listing,
     providerProfile: {
       ...listing.providerProfile,
       ...(ratingSummaries.get(listing.providerProfile.id) ?? { averageRating: null, reviewCount: 0 }),
+      activePromotions: activePromotions.get(listing.providerProfile.id) ?? [],
     },
   }));
 
@@ -143,12 +149,16 @@ export async function getPublicListing(listingId: string) {
   if (!listing || !listing.isActive) {
     throw new AppError(404, "Listing not found");
   }
-  const ratingSummaries = await getProviderRatingSummaries([listing.providerProfile.id]);
+  const [ratingSummaries, activePromotions] = await Promise.all([
+    getProviderRatingSummaries([listing.providerProfile.id]),
+    getActivePromotionsForProviders([listing.providerProfile.id]),
+  ]);
   return {
     ...listing,
     providerProfile: {
       ...listing.providerProfile,
       ...(ratingSummaries.get(listing.providerProfile.id) ?? { averageRating: null, reviewCount: 0 }),
+      activePromotions: activePromotions.get(listing.providerProfile.id) ?? [],
     },
   };
 }

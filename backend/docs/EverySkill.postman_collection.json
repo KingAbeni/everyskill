@@ -144,6 +144,14 @@
     {
       "key": "imageUrl",
       "value": "https://raw.githubusercontent.com/github/explore/main/topics/nodejs/nodejs.png"
+    },
+    {
+      "key": "promotionId",
+      "value": ""
+    },
+    {
+      "key": "couponCode",
+      "value": "SAVE15"
     }
   ],
   "item": [
@@ -854,7 +862,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"scheduledAt\": \"2026-08-10T09:00:00.000Z\"\n}"
+              "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"scheduledAt\": \"2026-08-10T09:00:00.000Z\",\n  \"couponCode\": \"{{couponCode}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/customers/me/bookings",
@@ -3433,6 +3441,190 @@
             }
           },
           "description": "FR20. Requires both a BEFORE and an AFTER ServiceDocumentation image to already exist (409 otherwise). Returns { verdict, confidence, reasoning }."
+        },
+        {
+          "name": "Create Promotion (Discount)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"DISCOUNT\",\n  \"details\": {\n    \"percentOff\": 20\n  },\n  \"validFrom\": \"2026-08-01T00:00:00Z\",\n  \"validTo\": \"2026-08-31T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/promotions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "promotions"
+              ]
+            }
+          },
+          "description": "FR26. DISCOUNT auto-applies to every new booking for this provider while active (best one wins if several are running). No code — it's automatic."
+        },
+        {
+          "name": "Create Promotion (Coupon)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"COUPON\",\n  \"code\": \"SAVE15\",\n  \"details\": {\n    \"amountOff\": 15\n  },\n  \"maxRedemptions\": 50,\n  \"validFrom\": \"2026-08-01T00:00:00Z\",\n  \"validTo\": \"2026-08-31T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/promotions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "promotions"
+              ]
+            }
+          },
+          "description": "FR26. COUPON never auto-applies — the customer must pass this code as couponCode on POST .../bookings. Overrides any active DISCOUNT."
+        },
+        {
+          "name": "Create Promotion (Campaign)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CAMPAIGN\",\n  \"details\": {\n    \"title\": \"Summer Special\",\n    \"description\": \"Book now for summer!\"\n  },\n  \"validFrom\": \"2026-08-01T00:00:00Z\",\n  \"validTo\": \"2026-08-31T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/promotions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "promotions"
+              ]
+            }
+          },
+          "description": "FR26. CAMPAIGN is informational only — never affects booking price."
+        },
+        {
+          "name": "List My Promotions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/promotions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "promotions"
+              ]
+            }
+          },
+          "description": "FR26. All of your promotions, any type/status, newest first."
+        },
+        {
+          "name": "Update Promotion (Deactivate)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/promotions/{{promotionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "promotions",
+                "{{promotionId}}"
+              ]
+            }
+          },
+          "description": "FR26. type/code are immutable. Use isActive:false to retire an already-redeemed promotion instead of deleting it (delete is blocked once timesRedeemed > 0)."
+        },
+        {
+          "name": "Delete Promotion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/promotions/{{promotionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "promotions",
+                "{{promotionId}}"
+              ]
+            }
+          },
+          "description": "FR26. 409 if the promotion has ever been redeemed (timesRedeemed > 0) — deactivate instead."
         }
       ]
     },
