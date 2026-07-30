@@ -833,10 +833,11 @@ Backed by [Groq](https://console.groq.com)'s free-tier OpenAI-compatible API (`G
   "serviceArea": "Greater London",
   "tags": ["plumbing", "emergency"],
   "cancellationCutoffHours": 24,
-  "requiresDocumentation": true
+  "requiresDocumentation": true,
+  "requiresQrVerification": false
 }
 ```
-`categoryIds` (non-empty array), `title`, `description`, `price`, `durationMinutes` required. `pricingType` is `"FIXED"` (price for the whole task) or `"HOURLY"` (price per hour) — defaults to `"FIXED"` if omitted. `price` means "total price for the task" under `FIXED`, or "rate per hour" under `HOURLY`; `durationMinutes` is always the estimated/scheduled duration (used for booking slots either way). `images`, `tags` default to `[]`; `cancellationCutoffHours` defaults to `24` (see FR13 — this is the cutoff, relative to the booking time, after which a customer cancellation or no-show gets recorded against the responsible party). `requiresDocumentation` defaults to `true` — set it to `false` for service types with nothing visual to document (e.g. a delivery service), to exempt this listing's bookings from FR17's completion/after-image requirement (see **Service Documentation (FR17)** below). Response `201`, with the created listing's `categories` array populated. Errors: `404 { "error": "One or more categories not found" }`.
+`categoryIds` (non-empty array), `title`, `description`, `price`, `durationMinutes` required. `pricingType` is `"FIXED"` (price for the whole task) or `"HOURLY"` (price per hour) — defaults to `"FIXED"` if omitted. `price` means "total price for the task" under `FIXED`, or "rate per hour" under `HOURLY`; `durationMinutes` is always the estimated/scheduled duration (used for booking slots either way). `images`, `tags` default to `[]`; `cancellationCutoffHours` defaults to `24` (see FR13 — this is the cutoff, relative to the booking time, after which a customer cancellation or no-show gets recorded against the responsible party). `requiresDocumentation` defaults to `true` — set it to `false` for service types with nothing visual to document (e.g. a delivery service), to exempt this listing's bookings from FR17's completion/after-image requirement (see **Service Documentation (FR17)** below). `requiresQrVerification` defaults to `false` — set it to `true` to require QR-code arrival/completion scans instead of the direct `start`/`complete` actions (see **Booking QR Verification** below). Response `201`, with the created listing's `categories` array populated. Errors: `404 { "error": "One or more categories not found" }`.
 
 ### Update a listing
 
@@ -996,21 +997,26 @@ Response `201`. Errors:
 
 ## Booking Management (FR11)
 
-Booking workflow states: `REQUESTED → ACCEPTED → IN_PROGRESS → COMPLETED`, with `CANCELLED`/`DECLINED` as exits and `DISPUTED` reachable from `ACCEPTED`/`IN_PROGRESS`/`COMPLETED` (see **Cancellation & Dispute Resolution (FR13)** below). Every transition is validated server-side and recorded in `BookingStatusHistory` (returned as `statusHistory` on the single-booking `GET` endpoints below).
+Booking workflow states: `REQUESTED → ACCEPTED → IN_PROGRESS → WAITING_FOR_CONFIRMATION → COMPLETED`, with `CANCELLED`/`DECLINED` as exits and `DISPUTED` reachable from `ACCEPTED`/`IN_PROGRESS`/`WAITING_FOR_CONFIRMATION`/`COMPLETED` (see **Cancellation & Dispute Resolution (FR13)** below). Every transition is validated server-side and recorded in `BookingStatusHistory` (returned as `statusHistory` on the single-booking `GET` endpoints below).
+
+`WAITING_FOR_CONFIRMATION` means the provider has claimed the job is done, but the **customer must confirm** before it's truly `COMPLETED` — no booking reaches `COMPLETED` unilaterally from the provider side anymore. There are two ways to get there and back out, controlled by the listing's `requiresQrVerification` flag — see **Booking QR Verification** below for the full QR-driven path.
 
 Allowed transitions (anything else → `409 { "error": "Cannot transition booking from X to Y" }`):
 ```
-REQUESTED   → ACCEPTED | DECLINED | CANCELLED
-ACCEPTED    → IN_PROGRESS | CANCELLED | DISPUTED
-IN_PROGRESS → COMPLETED | CANCELLED | DISPUTED
-COMPLETED   → DISPUTED
-DISPUTED    → COMPLETED | CANCELLED (via dispute resolution only, FR13 — never a direct action)
-CANCELLED / DECLINED → (terminal — no further transitions)
+REQUESTED                → ACCEPTED | DECLINED | CANCELLED
+ACCEPTED                 → IN_PROGRESS | CANCELLED | DISPUTED
+IN_PROGRESS              → WAITING_FOR_CONFIRMATION | CANCELLED | DISPUTED
+WAITING_FOR_CONFIRMATION → COMPLETED | DISPUTED   (no direct CANCELLED — confirm or dispute)
+COMPLETED                → DISPUTED
+DISPUTED                 → COMPLETED | CANCELLED (via dispute resolution only, FR13 — never a direct action)
+CANCELLED / DECLINED     → (terminal — no further transitions)
 ```
 
 **Double-booking prevention**: creating a booking checks the exact requested time + the listing's `durationMinutes` against (a) the provider's declared `AvailabilitySlot`s (FR8) — must be fully covered by an open window and not intersected by a blocked one — and (b) every other booking for that provider that isn't `CANCELLED`/`DECLINED`, for a real time-range overlap. Bookings that would cross midnight aren't supported by the current slot model and are rejected.
 
-**Payment sync (FR12)**: marking a booking `COMPLETED` automatically releases its escrowed payment (if any); marking it `CANCELLED` automatically refunds it (if any) — see **Escrow Payment System (FR12)** below. A booking with no payment (never paid, or paid then already resolved) is unaffected — this is a no-op, not an error.
+**Payment sync (FR12)**: a booking reaching `COMPLETED` automatically releases its escrowed payment (if any); marking it `CANCELLED` automatically refunds it (if any) — see **Escrow Payment System (FR12)** below. A booking with no payment (never paid, or paid then already resolved) is unaffected — this is a no-op, not an error.
+
+**Gamification side effects (see Provider Gamification below)**: the moment a booking actually reaches `COMPLETED` — whether via the customer confirming, a completion-QR scan, or a dispute resolved in the provider's favor — the provider's `completedJobs` count increments, their consecutive-completion streak increments, they're awarded XP (and a streak bonus every Nth job), their tier is recalculated, and threshold achievements are checked. This always happens exactly once, from one shared internal function, regardless of which of the three paths triggered it.
 
 **Cancellation consequences, no-shows, disputes, and rescheduling** are all covered in **Cancellation & Dispute Resolution (FR13)** below.
 
@@ -1047,7 +1053,9 @@ Errors:
 ```json
 { "cancellationReason": "Change of plans" }
 ```
-`cancellationReason` optional. Only valid from `REQUESTED`/`ACCEPTED`/`IN_PROGRESS`. Response `200`. Errors: `404` if not found/not yours; `409` if the booking is already in a terminal state.
+`cancellationReason` optional. Only valid from `REQUESTED`/`ACCEPTED`/`IN_PROGRESS` (not from `WAITING_FOR_CONFIRMATION` — at that point the only outcomes are confirming or disputing). Response `200`. Errors: `404` if not found/not yours; `409` if the booking is already in a terminal state.
+
+**POST** `/api/customers/me/bookings/:bookingId/confirm-completion` — no body → `WAITING_FOR_CONFIRMATION → COMPLETED`. **Non-QR listings only** (`requiresQrVerification: false`) — for QR listings, scan the completion QR instead (see **Booking QR Verification** below). Response `200`. Errors: `404` if not found/not yours; `409 { "error": "This listing requires QR verification — scan the completion QR instead" }` if the listing requires QR verification; `409 { "error": "Cannot confirm completion for a booking in status X" }` if not currently `WAITING_FOR_CONFIRMATION`.
 
 ### Provider — manage bookings against my listings `/api/providers/me/bookings`
 
@@ -1061,9 +1069,9 @@ Requires `Authorization: Bearer <accessToken>` for a **PROVIDER** account.
 
 **PATCH** `/api/providers/me/bookings/:bookingId/decline` — no body → `REQUESTED → DECLINED`. Response `200`.
 
-**PATCH** `/api/providers/me/bookings/:bookingId/start` — no body → `ACCEPTED → IN_PROGRESS`. Response `200`.
+**PATCH** `/api/providers/me/bookings/:bookingId/start` — no body → `ACCEPTED → IN_PROGRESS`. **Non-QR listings only** — `409 { "error": "This listing requires QR verification — use the arrival QR flow instead" }` if `requiresQrVerification: true` (see **Booking QR Verification** below). Response `200`.
 
-**PATCH** `/api/providers/me/bookings/:bookingId/complete` — no body → `IN_PROGRESS → COMPLETED`. **Requires at least one `COMPLETION` and one `AFTER` service-documentation image to already exist for this booking** (FR17, see **Service Documentation (FR17)** below) — `409 { "error": "Cannot complete this booking — at least one completion image and one after image are required first" }` otherwise. This gate does **not** apply to a booking reaching `COMPLETED` via dispute resolution (`DISMISS`/`RELEASE_PROVIDER` — FR13) — an admin's override authority isn't blocked by missing proof-of-work photos. Response `200`.
+**PATCH** `/api/providers/me/bookings/:bookingId/complete` — no body → `IN_PROGRESS → WAITING_FOR_CONFIRMATION` (not straight to `COMPLETED` — the customer must confirm afterward, see above). **Non-QR listings only** — `409` for QR listings, same shape as `start` (use the "Finish Job" completion-QR flow instead). **Requires at least one `COMPLETION` and one `AFTER` service-documentation image to already exist for this booking** (FR17, see **Service Documentation (FR17)** below) — `409 { "error": "Cannot complete this booking — at least one completion image and one after image are required first" }` otherwise. This gate does **not** apply to a booking reaching `COMPLETED` via dispute resolution (`DISMISS`/`RELEASE_PROVIDER` — FR13) — an admin's override authority isn't blocked by missing proof-of-work photos. Response `200`.
 
 **PATCH** `/api/providers/me/bookings/:bookingId/cancel`:
 ```json
@@ -1071,7 +1079,7 @@ Requires `Authorization: Bearer <accessToken>` for a **PROVIDER** account.
 ```
 `cancellationReason` optional. Same allowed-from states as the customer's cancel. Response `200`.
 
-All six action endpoints share these errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours; `409 { "error": "Cannot transition booking from X to Y" }` if the current status doesn't allow that action.
+All action endpoints share these errors: `404 { "error": "Booking not found" }` if it doesn't exist or isn't yours; `409 { "error": "Cannot transition booking from X to Y" }` if the current status doesn't allow that action.
 
 ---
 
@@ -1279,7 +1287,7 @@ Each `CustomerProfile`/`ProviderProfile` tracks `lateCancellationCount` and `noS
 
 ### Disputes
 
-**POST** `/api/customers/me/bookings/:bookingId/dispute` or **POST** `/api/providers/me/bookings/:bookingId/dispute` — booking must be `ACCEPTED`/`IN_PROGRESS`/`COMPLETED` and owned by the caller; one dispute per booking.
+**POST** `/api/customers/me/bookings/:bookingId/dispute` or **POST** `/api/providers/me/bookings/:bookingId/dispute` — booking must be `ACCEPTED`/`IN_PROGRESS`/`WAITING_FOR_CONFIRMATION`/`COMPLETED` and owned by the caller; one dispute per booking. A customer who doesn't believe the job was actually done can dispute instead of confirming completion.
 ```json
 { "reason": "Work was not completed to the agreed standard" }
 ```
@@ -1298,9 +1306,9 @@ Response `201`: the created `Dispute` (`status: "OPEN"`), and the booking transi
 `decision` is one of:
 | Decision | Dispute status | Booking status | Payment effect |
 |---|---|---|---|
-| `"RELEASE_PROVIDER"` | `RESOLVED` | `COMPLETED` | If still `ESCROW`, captured (same as a normal completion) and the provider's balance is credited net-of-commission. If already `RELEASED`, no-op. |
-| `"REFUND_CUSTOMER"` | `RESOLVED` | `CANCELLED` | If still `ESCROW`, cancelled (pre-capture, same as a normal cancellation). If already `RELEASED` (captured), a **real Stripe refund** is issued and the provider's credited balance is **clawed back** by the same net amount — this can drive the balance negative if they've already withdrawn it (see limitation below). |
-| `"DISMISS"` | `REJECTED` | `COMPLETED` | No payment action — the dispute is thrown out, booking returns to normal. |
+| `"RELEASE_PROVIDER"` | `RESOLVED` | `COMPLETED` | If still `ESCROW`, captured (same as a normal completion) and the provider's balance is credited net-of-commission. If already `RELEASED`, no-op. Also runs the full gamification pipeline (XP/tier/achievements/streak — see **Provider Gamification** below), same as any other path to `COMPLETED`. |
+| `"REFUND_CUSTOMER"` | `RESOLVED` | `CANCELLED` | If still `ESCROW`, cancelled (pre-capture, same as a normal cancellation). If already `RELEASED` (captured), a **real Stripe refund** is issued and the provider's credited balance is **clawed back** by the same net amount — this can drive the balance negative if they've already withdrawn it (see limitation below). Also resets the provider's completion streak to 0 (resolved against them, same as any other provider-fault outcome). |
+| `"DISMISS"` | `REJECTED` | `COMPLETED` | No payment action — the dispute is thrown out, booking returns to normal. Also runs the gamification pipeline, same as `RELEASE_PROVIDER`. |
 
 Response `200`: the updated `Dispute`. Errors: `404` if not found; `409 { "error": "This dispute has already been X" }` if already `RESOLVED`/`REJECTED`.
 
@@ -1574,6 +1582,116 @@ All three require `validFrom < validTo` (`400` otherwise). Response `201`. Creat
 Every listing search result's `providerProfile` summary (`GET /api/listings`, `GET /api/listings/:listingId`, `POST /api/listings/ai-search`) carries `activePromotions` — the provider's currently-active `DISCOUNT`/`CAMPAIGN` promotions, computed via one batched query per search (same pattern as FR16's `averageRating`/`reviewCount`, no N+1). **`COUPON` promotions are never included here** — a code has to be told to the customer out-of-band (an email, a social post, printed on a flyer); exposing valid codes through the public search API would let anyone redeem them without ever being given the code, defeating the entire point.
 
 **Not yet implemented / known limitations** (documented honestly): a promotion is provider-wide, not listing-specific — there's no way to discount only one of a provider's several listings without adding a `listingId` column (out of scope for this pass). No admin-facing moderation of promotion content (a provider could in principle write anything into a `CAMPAIGN`'s `details`; FR18's reporting can still be used against a `USER`/`LISTING` if a promotion is abused, but there's no direct `Promotion` report target type).
+
+---
+
+## Provider Gamification
+
+Tracks how long a provider has been on the platform, how much they've completed, and rewards them with XP, tiers, and badges. Backend + API only — no frontend/mobile client exists in this repo, so "Provider App" screens (XP bar, badges, member-since) are just what these endpoints return, for a future client to render.
+
+**Stats tracked** (`ProviderStats`, one row per provider, created lazily on first XP-earning event): `totalXp`, `currentTier`, `completedJobs`, `currentStreak` (consecutive completions), `longestStreak`, `fiveStarReviewCount`. Derived at read time (not stored): `memberSince`/`yearsOnPlatform` (from `ProviderProfile.createdAt`, calendar-year subtraction — joined 2022, now 2026 → "Member for 4 years"), `successRate` (`completedJobs / (completedJobs + lateCancellationCount + noShowCount)`), `averageRating`/`reviewCount` (reused from **Ratings & Reviews (FR16)**'s `getProviderRatingSummaries` — not recomputed separately).
+
+**XP rules** — all amounts configurable by an admin (see Settings below), awarded via one shared `awardXp()` that also recalculates the provider's tier every time:
+| Event | Default XP | Reason code |
+|---|---|---|
+| Booking reaches `COMPLETED` (any path — confirm, QR, or dispute resolved in provider's favor) | 50 | `JOB_COMPLETED` |
+| A review with `rating: 5` is submitted | 30 | `FIVE_STAR_REVIEW` |
+| Consecutive-completion streak hits a multiple of `xpStreakBonusEvery` (default every 5th) | 25 | `STREAK_BONUS` |
+
+`xpPerYearMilestone` exists in settings for a future yearly-anniversary bonus but has no trigger wired up yet (not part of this pass's scope).
+
+**Tiers** (`TierLevel`, an ordered admin-managed list, not a fixed enum): seeded as Bronze (0 XP) / Silver (500) / Gold (1500) / Platinum (3500) / Diamond (7000). After every XP award, the provider's tier is recalculated to the highest active tier whose `minXp` they meet — automatic, never a manual action — and they're notified (`TIER_UPGRADED`) if it changed.
+
+**Badges** (`Achievement` + `ProviderBadge`, stored in the database, checked instantly after every qualifying event): `FIRST_JOB`, `JOBS_50`, `JOBS_100`, `JOBS_500`, `YEAR_1`, `YEAR_5` (elapsed 365-day thresholds, not calendar-year), `FIVE_STAR_100`. Idempotent — a unique constraint on `(providerProfileId, achievementId)` means re-checking never double-awards. **Not implemented in this pass** (see Future Work below): "Perfect Month" and "Top Provider" — both need a recurring time-window/ranking job rather than an instant per-event check, and were explicitly deferred alongside leaderboards.
+
+### Read endpoints
+
+**GET** `/api/providers/:providerProfileId/stats` — **public**, no auth required (mounted ahead of the authenticated Provider Module so it's reachable unauthenticated). Response `200`:
+```json
+{
+  "providerProfileId": "...", "memberSince": "2022-03-01T00:00:00.000Z", "yearsOnPlatform": 4,
+  "memberForLabel": "Member for 4 years", "totalXp": 180,
+  "currentTier": { "id": "...", "name": "Bronze", "minXp": 0 },
+  "nextTier": { "id": "...", "name": "Silver", "minXp": 500, "xpNeeded": 320 },
+  "completedJobs": 3, "currentStreak": 3, "longestStreak": 3, "successRate": 100,
+  "averageRating": 5, "reviewCount": 1, "badgeCount": 1
+}
+```
+`nextTier` is `null` at the top tier. `successRate`/`averageRating` are `null` if there's no denominator yet (no completed/violation history, or no reviews). Errors: `404 { "error": "Provider not found" }`.
+
+**GET** `/api/providers/:providerProfileId/achievements` — **public**. Response `200` — array of earned `ProviderBadge` rows, each with the nested `achievement` (`code`, `name`, `description`), newest-earned first.
+
+**GET** `/api/providers/me/xp-history` — **PROVIDER**-authenticated, your own ledger only. Response `200` — array of `ProviderXpHistory` rows (`amount`, `reason`, `relatedBookingId`, `createdAt`), newest first.
+
+### Admin configuration — `/api/admin/gamification`
+
+Requires `Authorization: Bearer <accessToken>` for **ADMIN**/**SUPER_ADMIN**.
+
+**GET**/**POST** `/api/admin/gamification/tiers` — list all tiers (any/active), or create a new one: `{ "name": "Master", "minXp": 15000, "order": 6 }`. `name`, `minXp`, `order` must each be unique — `409` on a clash. This is how "create a new tier" is satisfied.
+
+**PATCH** `/api/admin/gamification/tiers/:tierId` — any subset of `name`, `minXp`, `order`, `isActive` (soft-disable instead of deleting — matches this codebase's `isActive` convention). This is how "change tier name" is satisfied. Errors: `404` if not found.
+
+**GET**/**POST** `/api/admin/gamification/achievements` — list all, or create: `{ "code": "REGIONAL_CHAMPION", "name": "...", "description": "..." }`. `code` must be unique — `409` on a clash.
+
+**PATCH** `/api/admin/gamification/achievements/:achievementId` — any subset of `name`, `description`, `isActive`. Errors: `404` if not found.
+
+**GET**/**PATCH** `/api/admin/gamification/settings` — the singleton `GamificationSettings` row (same pattern as **Platform Commission**'s `PlatformSettings`). `PATCH` body: any subset of `xpPerCompletedJob`, `xpPerFiveStarReview`, `xpStreakBonusEvery`, `xpStreakBonusAmount`, `xpPerYearMilestone`. This is how "XP should be configurable" is satisfied.
+
+**GET** `/api/admin/gamification/provider-progression` → `200` — every provider's `totalXp`, `currentTier`, `completedJobs`, streaks, `badgeCount`, rating, sorted by `totalXp` descending. Reuses `getProviderRatingSummaries` — no separate rating computation.
+
+**GET** `/api/admin/gamification/qr-audit` — optional `?bookingId=...&providerProfileId=...` filters → array of `BookingQrToken` rows (kind, status, timestamps, `generatedById`/`usedById`) with the parent booking's `id`/`providerProfileId`/`customerId`/`status`. No separate audit table exists — `BookingQrToken` already carries everything needed for "view QR verification history".
+
+### Future gamification work (explicitly out of scope for this pass)
+
+"Perfect Month" (zero cancellations/no-shows/disputes in a calendar month) and "Top Provider" (relative ranking) badges, leaderboards, seasonal events, daily challenges, referral rewards, and provider rankings all need a recurring ranking/time-window evaluation job (e.g. a monthly cron, similar in shape to `offlineBillingCron`) rather than the instant-check achievement engine built here.
+
+---
+
+## Booking QR Verification
+
+Proof-of-presence for in-person bookings: instead of the provider unilaterally clicking "start"/"complete", each step requires the **customer** to scan a unique, single-use QR code. Opt-in per listing via `requiresQrVerification` (see **Service Listings** above) — listings that don't need it keep using the plain `start`/`complete`/`confirm-completion` flow from **Booking Management** above (which itself now also always requires customer confirmation before `COMPLETED`).
+
+**Security properties**: each token is `crypto.randomBytes(32)` (256 bits, cryptographically random) — **no provider/customer/booking ID is embedded in it**. Only its SHA-256 hash is ever stored (`BookingQrToken.tokenHash`); the raw value is returned exactly once, at generation, and never persisted anywhere else. A token is scoped to one booking + one step (`ARRIVAL` or `COMPLETION`), expires after 15 minutes, and is marked `USED` (and hash-compared with `crypto.timingSafeEqual`) the moment it's validated — reusing it, using it for the wrong booking, or using an arrival token to validate completion (or vice versa) all fail. Generating a new token of the same kind for the same booking immediately invalidates any still-`PENDING` predecessor, so at most one live token per (booking, kind) ever exists. The QR image itself (`qrImageDataUrl`, a base64 PNG data URL via the `qrcode` package) encodes a self-contained payload (`{ bookingId, token }`, base64url-encoded) — a client scanning it doesn't need separate context about which booking it belongs to.
+
+**Only the booking's customer may validate a QR** — enforced the same way as every other customer-owned-booking check in this API (`404` if the booking isn't found or isn't theirs).
+
+### Step 1 — Arrival
+
+**POST** `/api/providers/me/bookings/:bookingId/arrival-qr` — provider generates the Arrival QR. Booking must be `ACCEPTED` and the listing must have `requiresQrVerification: true`. Response `201`:
+```json
+{ "token": "eyJib29raW5nSWQiOi...", "qrImageDataUrl": "data:image/png;base64,...", "expiresAt": "2026-07-30T08:32:20.056Z" }
+```
+
+**POST** `/api/customers/me/bookings/:bookingId/arrival-qr/validate`:
+```json
+{ "token": "eyJib29raW5nSWQiOi..." }
+```
+On success: booking → `IN_PROGRESS`, token marked `USED`, provider notified (`BOOKING_ARRIVAL_CONFIRMED`). Response `200` — the updated booking.
+
+### Step 2 — Finish Job / Completion
+
+**POST** `/api/providers/me/bookings/:bookingId/completion-qr` — provider's "Finish Job" action. Booking must be `IN_PROGRESS`. **Generates an entirely new token — never reuses the arrival one.** Also transitions the booking to `WAITING_FOR_CONFIRMATION` at this point (same FR17 documentation gate as the non-QR `complete` action fires here). Response `201` — same shape as arrival-qr.
+
+**POST** `/api/customers/me/bookings/:bookingId/completion-qr/validate`:
+```json
+{ "token": "eyJib29raW5nSWQiOi..." }
+```
+On success: booking → `COMPLETED` via the same shared `finalizeBookingCompletion` used by the non-QR confirm path and dispute resolution — payment release, XP, streak, tier recalculation, and achievement checks all fire here too. Token marked `USED`. Response `200` — the updated booking, ready for the customer to leave a review.
+
+### Errors (both `validate` endpoints)
+
+| Status | Body | Cause |
+|---|---|---|
+| `400` | `{ "error": "Validation failed", ... }` | Missing/empty `token` |
+| `404` | `{ "error": "Booking not found" }` | Doesn't exist, or isn't this customer's booking |
+| `409` | `{ "error": "Cannot validate an arrival QR for a booking in status X" }` / `"...completion QR..."` | Booking isn't in the expected status for this step |
+| `400` | `{ "error": "Invalid QR code payload" }` | Submitted `token` isn't valid base64url-encoded JSON |
+| `400` | `{ "error": "This QR code does not belong to this booking" }` | Payload's `bookingId` doesn't match the URL's `:bookingId` |
+| `400` | `{ "error": "No pending QR code found for this booking — it may already have been used or replaced" }` | No `PENDING` token of this kind exists (already used, expired-and-replaced, or never generated) |
+| `400` | `{ "error": "This QR code has expired" }` | Past its 15-minute `expiresAt` (also flips the row to `EXPIRED`) |
+| `400` | `{ "error": "Invalid QR code" }` | Hash mismatch — wrong token, or (not a supported use case) an arrival token submitted to the completion endpoint or vice versa |
+
+Generate-endpoint errors: `404` if not found/not yours; `409 { "error": "This listing does not require QR verification" }` if `requiresQrVerification: false`; `409 { "error": "Cannot generate a(n) X QR for a booking in status Y" }` if the booking isn't in the right status yet.
 
 ---
 

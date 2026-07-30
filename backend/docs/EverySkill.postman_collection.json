@@ -152,6 +152,22 @@
     {
       "key": "couponCode",
       "value": "SAVE15"
+    },
+    {
+      "key": "arrivalQrToken",
+      "value": ""
+    },
+    {
+      "key": "completionQrToken",
+      "value": ""
+    },
+    {
+      "key": "tierId",
+      "value": ""
+    },
+    {
+      "key": "achievementId",
+      "value": ""
     }
   ],
   "item": [
@@ -1703,6 +1719,105 @@
             }
           },
           "description": "FR20. Same as the provider version."
+        },
+        {
+          "name": "Validate Arrival QR",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{arrivalQrToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/arrival-qr/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "arrival-qr",
+                "validate"
+              ]
+            }
+          },
+          "description": "Booking QR Verification. Only the booking's customer can validate. On success: booking -> IN_PROGRESS."
+        },
+        {
+          "name": "Validate Completion QR",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{completionQrToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/completion-qr/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "completion-qr",
+                "validate"
+              ]
+            }
+          },
+          "description": "Booking QR Verification. Brand-new token from Generate Completion QR, never the arrival one. On success: booking -> COMPLETED, gamification pipeline runs."
+        },
+        {
+          "name": "Confirm Booking Completion (non-QR)",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers/me/bookings/{{bookingId}}/confirm-completion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "confirm-completion"
+              ]
+            }
+          },
+          "description": "Booking Management. Non-QR listings only — WAITING_FOR_CONFIRMATION -> COMPLETED."
         }
       ]
     },
@@ -2024,7 +2139,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryIds\": [\"{{categoryId}}\", \"{{categoryId2}}\"],\n  \"title\": \"Emergency Leak Repair\",\n  \"description\": \"Same-day callout for burst pipes and leaks.\",\n  \"pricingType\": \"FIXED\",\n  \"price\": 75.00,\n  \"durationMinutes\": 60,\n  \"images\": [\"https://example.com/listing1.jpg\"],\n  \"serviceArea\": \"Greater London\",\n  \"tags\": [\"plumbing\", \"emergency\"],\n  \"cancellationCutoffHours\": 24\n}"
+              "raw": "{\n  \"categoryIds\": [\n    \"{{categoryId}}\",\n    \"{{categoryId2}}\"\n  ],\n  \"title\": \"Emergency Leak Repair\",\n  \"description\": \"Same-day callout for burst pipes and leaks.\",\n  \"pricingType\": \"FIXED\",\n  \"price\": 75,\n  \"durationMinutes\": 60,\n  \"images\": [\n    \"https://example.com/listing1.jpg\"\n  ],\n  \"serviceArea\": \"Greater London\",\n  \"tags\": [\n    \"plumbing\",\n    \"emergency\"\n  ],\n  \"cancellationCutoffHours\": 24,\n  \"requiresQrVerification\": false\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/providers/me/listings",
@@ -3625,6 +3740,85 @@
             }
           },
           "description": "FR26. 409 if the promotion has ever been redeemed (timesRedeemed > 0) — deactivate instead."
+        },
+        {
+          "name": "Generate Arrival QR",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/arrival-qr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "arrival-qr"
+              ]
+            }
+          },
+          "description": "Booking QR Verification. QR-required listings only, booking must be ACCEPTED. Save the response's token as {{arrivalQrToken}}."
+        },
+        {
+          "name": "Generate Completion QR (Finish Job)",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/bookings/{{bookingId}}/completion-qr",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "completion-qr"
+              ]
+            }
+          },
+          "description": "Booking QR Verification. Booking must be IN_PROGRESS. Transitions to WAITING_FOR_CONFIRMATION and creates a brand-new token — save as {{completionQrToken}}."
+        },
+        {
+          "name": "Get My XP History",
+          "request": {
+            "method": "Get",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{providerAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/me/xp-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "me",
+                "xp-history"
+              ]
+            }
+          },
+          "description": "Provider Gamification. Your own ProviderXpHistory ledger, newest first."
         }
       ]
     },
@@ -4853,6 +5047,292 @@
             }
           },
           "description": "FR25. Combined time-series: new users + new bookings + revenue in one trend view."
+        },
+        {
+          "name": "List Tiers",
+          "request": {
+            "method": "Get",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/tiers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "tiers"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Tier",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Master\",\n  \"minXp\": 15000,\n  \"order\": 6\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/tiers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "tiers"
+              ]
+            }
+          },
+          "description": "name/minXp/order must each be unique."
+        },
+        {
+          "name": "Update Tier",
+          "request": {
+            "method": "Patch",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Grandmaster\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/tiers/{{tierId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "tiers",
+                "{{tierId}}"
+              ]
+            }
+          },
+          "description": "Any subset of name/minXp/order/isActive. isActive:false soft-disables instead of deleting."
+        },
+        {
+          "name": "List Achievements",
+          "request": {
+            "method": "Get",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/achievements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "achievements"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Achievement",
+          "request": {
+            "method": "Post",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"REGIONAL_CHAMPION\",\n  \"name\": \"Regional Champion\",\n  \"description\": \"Top provider in their region\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/achievements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "achievements"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Achievement",
+          "request": {
+            "method": "Patch",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isActive\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/achievements/{{achievementId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "achievements",
+                "{{achievementId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Gamification Settings",
+          "request": {
+            "method": "Get",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "settings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Gamification Settings",
+          "request": {
+            "method": "Patch",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"xpPerCompletedJob\": 75\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "settings"
+              ]
+            }
+          },
+          "description": "Any subset of xpPerCompletedJob/xpPerFiveStarReview/xpStreakBonusEvery/xpStreakBonusAmount/xpPerYearMilestone."
+        },
+        {
+          "name": "Provider Progression Report",
+          "request": {
+            "method": "Get",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/provider-progression",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "provider-progression"
+              ]
+            }
+          }
+        },
+        {
+          "name": "QR Verification Audit",
+          "request": {
+            "method": "Get",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/gamification/qr-audit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "gamification",
+                "qr-audit"
+              ]
+            }
+          },
+          "description": "Optional ?bookingId=...&providerProfileId=... filters."
         }
       ]
     },
@@ -5223,6 +5703,46 @@
             }
           },
           "description": "FR16. Public. Reviews for bookings of this listing, newest first, with customer {firstName,lastName}."
+        },
+        {
+          "name": "Get Provider Stats",
+          "request": {
+            "method": "Get",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/{{providerProfileId}}/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "{{providerProfileId}}",
+                "stats"
+              ]
+            }
+          },
+          "description": "Provider Gamification. Public — tier, XP, badges, streak, memberForLabel, successRate, rating."
+        },
+        {
+          "name": "Get Provider Achievements",
+          "request": {
+            "method": "Get",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/providers/{{providerProfileId}}/achievements",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "providers",
+                "{{providerProfileId}}",
+                "achievements"
+              ]
+            }
+          },
+          "description": "Provider Gamification. Public — earned badges, newest first."
         }
       ]
     },
