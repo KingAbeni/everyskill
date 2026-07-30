@@ -33,6 +33,9 @@ customerRouter.patch(
   asyncHandler(customerController.respondRescheduleHandler),
 );
 customerRouter.post("/me/bookings/:bookingId/dispute", asyncHandler(customerController.openDisputeHandler));
+customerRouter.post("/me/bookings/:bookingId/arrival-qr/validate", asyncHandler(customerController.validateArrivalQrHandler));
+customerRouter.post("/me/bookings/:bookingId/completion-qr/validate", asyncHandler(customerController.validateCompletionQrHandler));
+customerRouter.post("/me/bookings/:bookingId/confirm-completion", asyncHandler(customerController.confirmBookingCompletionHandler));
 customerRouter.post("/me/bookings/:bookingId/review", asyncHandler(customerController.createReviewHandler));
 customerRouter.get("/me/bookings/:bookingId/documentation", asyncHandler(customerController.listDocumentationHandler));
 customerRouter.post("/me/bookings/:bookingId/documentation", asyncHandler(customerController.submitBeforeDocumentationHandler));

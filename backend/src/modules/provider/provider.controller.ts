@@ -12,6 +12,8 @@ import * as notificationService from "../notification/notification.service";
 import * as reviewService from "../review/review.service";
 import * as documentationService from "../documentation/documentation.service";
 import * as promotionService from "../promotion/promotion.service";
+import * as qrTokenService from "../booking/qrToken.service";
+import * as gamificationService from "../gamification/gamification.service";
 import { createCertificationSchema, submitKycDocumentSchema, updateProviderProfileSchema } from "./provider.schemas";
 import {
   analyzeImageSchema,
@@ -343,4 +345,19 @@ export async function updatePromotionHandler(req: Request, res: Response) {
 export async function deletePromotionHandler(req: Request, res: Response) {
   await promotionService.deletePromotion(req.user!.sub, req.params.promotionId);
   res.status(204).send();
+}
+
+export async function generateArrivalQrHandler(req: Request, res: Response) {
+  const result = await qrTokenService.generateArrivalQr(req.user!.sub, req.params.bookingId);
+  res.status(201).json(result);
+}
+
+export async function generateCompletionQrHandler(req: Request, res: Response) {
+  const result = await qrTokenService.generateCompletionQr(req.user!.sub, req.params.bookingId);
+  res.status(201).json(result);
+}
+
+export async function getMyXpHistoryHandler(req: Request, res: Response) {
+  const history = await gamificationService.getMyXpHistory(req.user!.sub);
+  res.status(200).json(history);
 }

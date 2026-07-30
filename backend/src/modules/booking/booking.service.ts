@@ -9,6 +9,9 @@ import * as paymentService from "../payment/payment.service";
 import { notify, NotificationType } from "../notification/notification.service";
 import { assertCompletionDocumentationExists } from "../documentation/documentation.service";
 import { buildRedemptionIncrementQuery, resolveBookingPromotion } from "../promotion/promotion.service";
+import { getOrCreateProviderStats, awardXp, resetStreak } from "../gamification/xp.service";
+import { checkAndAwardAchievements } from "../gamification/achievement.service";
+import { getGamificationSettings } from "../gamification/gamificationSettings.service";
 
 type CreateBookingInput = z.infer<typeof createBookingSchema>;
 type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
@@ -34,14 +37,17 @@ const VIOLATION_SUSPENSION_THRESHOLD = 3;
 const TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   REQUESTED: ["ACCEPTED", "DECLINED", "CANCELLED"],
   ACCEPTED: ["IN_PROGRESS", "CANCELLED", "DISPUTED"],
-  IN_PROGRESS: ["COMPLETED", "CANCELLED", "DISPUTED"],
+  IN_PROGRESS: ["WAITING_FOR_CONFIRMATION", "CANCELLED", "DISPUTED"],
+  // Once the provider claims the job is done, the only ways out are the customer confirming it
+  // or disputing it — no direct cancellation from here (see plan: gamification + QR verification).
+  WAITING_FOR_CONFIRMATION: ["COMPLETED", "DISPUTED"],
   COMPLETED: ["DISPUTED"],
   CANCELLED: [],
   DECLINED: [],
   DISPUTED: ["COMPLETED", "CANCELLED"],
 };
 
-async function getCustomerProfileOrThrow(userId: string) {
+export async function getCustomerProfileOrThrow(userId: string) {
   const profile = await prisma.customerProfile.findUnique({ where: { userId } });
   if (!profile) {
     throw new AppError(404, "Customer profile not found");
@@ -49,7 +55,7 @@ async function getCustomerProfileOrThrow(userId: string) {
   return profile;
 }
 
-async function getProviderProfileOrThrow(userId: string) {
+export async function getProviderProfileOrThrow(userId: string) {
   const profile = await prisma.providerProfile.findUnique({ where: { userId } });
   if (!profile) {
     throw new AppError(404, "Provider profile not found");
@@ -141,7 +147,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   return booking;
 }
 
-async function getOwnedCustomerBookingOrThrow(customerProfileId: string, bookingId: string) {
+export async function getOwnedCustomerBookingOrThrow(customerProfileId: string, bookingId: string) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: bookingInclude });
   if (!booking || booking.customerId !== customerProfileId) {
     throw new AppError(404, "Booking not found");
@@ -149,7 +155,7 @@ async function getOwnedCustomerBookingOrThrow(customerProfileId: string, booking
   return booking;
 }
 
-async function getOwnedProviderBookingOrThrow(providerProfileId: string, bookingId: string) {
+export async function getOwnedProviderBookingOrThrow(providerProfileId: string, bookingId: string) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: bookingInclude });
   if (!booking || booking.providerProfileId !== providerProfileId) {
     throw new AppError(404, "Booking not found");
@@ -254,6 +260,8 @@ async function recordViolation(role: "CUSTOMER" | "PROVIDER", profileId: string,
       where: { id: profileId },
       data: { [field]: { increment: 1 } },
     });
+    // Any provider-fault violation breaks their consecutive-completion streak (gamification).
+    await resetStreak(profileId);
     if (updated.lateCancellationCount + updated.noShowCount >= VIOLATION_SUSPENSION_THRESHOLD) {
       await prisma.user.update({ where: { id: updated.userId }, data: { status: "SUSPENDED" } });
       await notify(
@@ -299,6 +307,9 @@ export async function declineBooking(userId: string, bookingId: string) {
 export async function startBooking(userId: string, bookingId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
+  if (booking.listing.requiresQrVerification) {
+    throw new AppError(409, "This listing requires QR verification — use the arrival QR flow instead");
+  }
   const updated = await transition(bookingId, booking.status, userId, "IN_PROGRESS");
   await notify(
     updated.customer.userId,
@@ -309,13 +320,106 @@ export async function startBooking(userId: string, bookingId: string) {
   return updated;
 }
 
+/**
+ * Provider-initiated completion (non-QR listings). No longer jumps straight to COMPLETED — every
+ * booking, QR-verified or not, now requires the customer to confirm before it's truly done (see
+ * plan: gamification + QR verification). The FR17 documentation gate still fires here, at the
+ * point the provider claims the job is finished.
+ */
 export async function completeBooking(userId: string, bookingId: string) {
   const profile = await getProviderProfileOrThrow(userId);
   const booking = await getOwnedProviderBookingOrThrow(profile.id, bookingId);
+  if (booking.listing.requiresQrVerification) {
+    throw new AppError(409, "This listing requires QR verification — use the Finish Job (completion QR) flow instead");
+  }
   if (booking.listing.requiresDocumentation) {
     await assertCompletionDocumentationExists(bookingId);
   }
-  const updated = await transition(bookingId, booking.status, userId, "COMPLETED");
+  const updated = await transition(bookingId, booking.status, userId, "WAITING_FOR_CONFIRMATION");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_AWAITING_CONFIRMATION,
+    `The provider marked "${updated.listing.title}" as done — please confirm to complete the booking`,
+    bookingId,
+  );
+  return updated;
+}
+
+/**
+ * Customer-facing confirmation for the non-QR completion path only. Rejects QR-required listings
+ * even though the booking may sit in the same WAITING_FOR_CONFIRMATION status either path reaches
+ * — otherwise a customer could bypass scanning the completion QR entirely by calling this instead.
+ */
+export async function confirmBookingCompletion(userId: string, bookingId: string) {
+  const profile = await getCustomerProfileOrThrow(userId);
+  const booking = await getOwnedCustomerBookingOrThrow(profile.id, bookingId);
+  if (booking.listing.requiresQrVerification) {
+    throw new AppError(409, "This listing requires QR verification — scan the completion QR instead");
+  }
+  if (booking.status !== "WAITING_FOR_CONFIRMATION") {
+    throw new AppError(409, `Cannot confirm completion for a booking in status ${booking.status}`);
+  }
+  return finalizeBookingCompletion(bookingId, userId);
+}
+
+/** QR-driven equivalent of startBooking — called by qrToken.service.ts after a valid arrival QR scan. */
+export async function markBookingInProgressViaQr(bookingId: string, actorUserId: string) {
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: bookingInclude });
+  const updated = await transition(bookingId, booking.status, actorUserId, "IN_PROGRESS");
+  await notify(
+    updated.providerProfile.userId,
+    NotificationType.BOOKING_ARRIVAL_CONFIRMED,
+    `The customer confirmed your arrival for "${updated.listing.title}"`,
+    bookingId,
+  );
+  return updated;
+}
+
+/** QR-driven equivalent of completeBooking's "mark done" step — called by qrToken.service.ts's generateCompletionQr. */
+export async function markBookingAwaitingConfirmationViaQr(bookingId: string, actorUserId: string) {
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: bookingInclude });
+  if (booking.listing.requiresDocumentation) {
+    await assertCompletionDocumentationExists(bookingId);
+  }
+  const updated = await transition(bookingId, booking.status, actorUserId, "WAITING_FOR_CONFIRMATION");
+  await notify(
+    updated.customer.userId,
+    NotificationType.BOOKING_AWAITING_CONFIRMATION,
+    `The provider marked "${updated.listing.title}" as done — scan the completion QR to confirm`,
+    bookingId,
+  );
+  return updated;
+}
+
+/**
+ * The single choke point for actually finishing a booking (WAITING_FOR_CONFIRMATION -> COMPLETED),
+ * reached from three places: the non-QR confirm-completion endpoint, the completion-QR validate
+ * endpoint, and dispute resolution in the provider's favor. Runs the full gamification pipeline
+ * (completed-job count, streak, XP, tier, achievements) alongside the existing payment release —
+ * this is what makes those side effects impossible to forget at any of the three call sites.
+ */
+export async function finalizeBookingCompletion(bookingId: string, actorUserId: string) {
+  const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId }, include: bookingInclude });
+  const updated = await transition(bookingId, booking.status, actorUserId, "COMPLETED");
+
+  const stats = await getOrCreateProviderStats(updated.providerProfileId);
+  const newStreak = stats.currentStreak + 1;
+  await prisma.providerStats.update({
+    where: { providerProfileId: updated.providerProfileId },
+    data: {
+      completedJobs: { increment: 1 },
+      currentStreak: newStreak,
+      longestStreak: Math.max(stats.longestStreak, newStreak),
+    },
+  });
+
+  const settings = await getGamificationSettings();
+  await awardXp(updated.providerProfileId, settings.xpPerCompletedJob, "JOB_COMPLETED", bookingId);
+  if (settings.xpStreakBonusEvery > 0 && newStreak % settings.xpStreakBonusEvery === 0) {
+    await awardXp(updated.providerProfileId, settings.xpStreakBonusAmount, "STREAK_BONUS", bookingId);
+  }
+  await checkAndAwardAchievements(updated.providerProfileId);
+
   await notify(
     updated.customer.userId,
     NotificationType.BOOKING_COMPLETED,
@@ -415,12 +519,19 @@ export async function transitionToDisputed(bookingId: string, actorUserId: strin
   return transition(bookingId, booking.status, actorUserId, "DISPUTED");
 }
 
-/** Used by dispute.service.ts to resolve a dispute (FR13) — DISPUTED -> COMPLETED or CANCELLED. */
+/**
+ * Used by dispute.service.ts to resolve a dispute (FR13) — DISPUTED -> COMPLETED or CANCELLED.
+ * Routes COMPLETED through finalizeBookingCompletion so a dispute resolved in the provider's
+ * favor still earns them the same gamification credit a normal completion would.
+ */
 export async function resolveDisputeTransition(
   bookingId: string,
   actorUserId: string,
   toStatus: "COMPLETED" | "CANCELLED",
 ) {
+  if (toStatus === "COMPLETED") {
+    return finalizeBookingCompletion(bookingId, actorUserId);
+  }
   const booking = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
-  return transition(bookingId, booking.status, actorUserId, toStatus);
+  return transition(bookingId, booking.status, actorUserId, "CANCELLED");
 }

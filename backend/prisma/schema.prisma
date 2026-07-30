@@ -38,6 +38,7 @@ enum BookingStatus {
   REQUESTED
   ACCEPTED
   IN_PROGRESS
+  WAITING_FOR_CONFIRMATION
   COMPLETED
   CANCELLED
   DECLINED
@@ -136,6 +137,25 @@ enum RescheduleStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum QrTokenKind {
+  ARRIVAL
+  COMPLETION
+}
+
+enum QrTokenStatus {
+  PENDING
+  USED
+  EXPIRED
+  INVALIDATED
+}
+
+enum XpReason {
+  JOB_COMPLETED
+  FIVE_STAR_REVIEW
+  STREAK_BONUS
+  YEARLY_MILESTONE
 }
 
 // ---------- Core identity ----------
@@ -270,6 +290,9 @@ model ProviderProfile {
   balance             ProviderBalance?
   withdrawals         WithdrawalRequest[]
   offlineBills        OfflinePaymentBill[]
+  stats               ProviderStats?
+  badges              ProviderBadge[]
+  xpHistory           ProviderXpHistory[]
 }
 
 model Certification {
@@ -324,6 +347,7 @@ model ServiceListing {
   tags               String[]
   cancellationCutoffHours Int        @default(24)
   requiresDocumentation Boolean      @default(true)
+  requiresQrVerification Boolean     @default(false)
   isActive           Boolean         @default(true)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -373,6 +397,7 @@ model Booking {
   extraCharges      ExtraCharge[]
   offlineBills      OfflinePaymentBill[]
   rescheduleRequests RescheduleRequest[]
+  qrTokens          BookingQrToken[]
 }
 
 model BookingStatusHistory {
@@ -383,6 +408,27 @@ model BookingStatusHistory {
   toStatus   BookingStatus
   changedById String?
   createdAt  DateTime      @default(now())
+}
+
+// One-time-use proof-of-presence tokens for the QR verification flow (FR: Booking QR
+// Verification). Only the raw token's sha256 hash is ever stored — the raw value is
+// returned once, at generation, and never persisted (see qrToken.service.ts).
+model BookingQrToken {
+  id            String        @id @default(uuid())
+  bookingId     String
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+  kind          QrTokenKind
+  tokenHash     String
+  status        QrTokenStatus @default(PENDING)
+  expiresAt     DateTime
+  generatedById String
+  usedById      String?
+  usedAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([bookingId])
+  @@index([tokenHash])
 }
 
 model Payment {
@@ -603,4 +649,84 @@ model AuditLog {
   targetId   String?
   metadata   Json?
   createdAt  DateTime @default(now())
+}
+
+// ---------- Provider Gamification ----------
+
+model ProviderStats {
+  id                  String          @id @default(uuid())
+  providerProfileId   String          @unique
+  providerProfile     ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  totalXp             Int             @default(0)
+  currentTierId       String?
+  currentTier         TierLevel?      @relation(fields: [currentTierId], references: [id])
+  completedJobs       Int             @default(0)
+  currentStreak       Int             @default(0)
+  longestStreak       Int             @default(0)
+  fiveStarReviewCount Int             @default(0)
+  lastYearlyMilestoneYear Int?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+// Admin-configurable list of tiers (not a singleton — admins can add new tiers /
+// rename existing ones), ordered by `order` ascending from lowest to highest.
+model TierLevel {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  minXp     Int             @unique
+  order     Int             @unique
+  isActive  Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  providerStats ProviderStats[]
+}
+
+model ProviderXpHistory {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  amount            Int
+  reason            XpReason
+  relatedBookingId  String?
+  createdAt         DateTime        @default(now())
+
+  @@index([providerProfileId])
+}
+
+model Achievement {
+  id          String          @id @default(uuid())
+  code        String          @unique
+  name        String
+  description String
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  badges      ProviderBadge[]
+}
+
+model ProviderBadge {
+  id                String          @id @default(uuid())
+  providerProfileId String
+  providerProfile   ProviderProfile @relation(fields: [providerProfileId], references: [id])
+  achievementId     String
+  achievement       Achievement     @relation(fields: [achievementId], references: [id])
+  earnedAt          DateTime        @default(now())
+
+  @@unique([providerProfileId, achievementId])
+}
+
+// Singleton row (same pattern as PlatformSettings) holding the configurable XP amounts.
+model GamificationSettings {
+  id                  String   @id @default(uuid())
+  xpPerCompletedJob   Int      @default(50)
+  xpPerFiveStarReview Int      @default(30)
+  xpStreakBonusEvery  Int      @default(5)
+  xpStreakBonusAmount Int      @default(25)
+  xpPerYearMilestone  Int      @default(100)
+  updatedById         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }

@@ -40,6 +40,7 @@ export const createListingSchema = z.object({
   tags: z.array(z.string().min(1)).optional(),
   cancellationCutoffHours: z.number().int().min(0).optional(),
   requiresDocumentation: z.boolean().optional(),
+  requiresQrVerification: z.boolean().optional(),
 });
 
 export const recommendCategorySchema = z.object({
@@ -63,6 +64,7 @@ export const updateListingSchema = z.object({
   tags: z.array(z.string().min(1)).optional(),
   cancellationCutoffHours: z.number().int().min(0).optional(),
   requiresDocumentation: z.boolean().optional(),
+  requiresQrVerification: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 

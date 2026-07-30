@@ -64,6 +64,19 @@ adminRouter.get("/reports/:reportId", asyncHandler(adminController.getReportHand
 adminRouter.patch("/reports/:reportId/review", asyncHandler(adminController.markReportReviewedHandler));
 adminRouter.patch("/reports/:reportId/action", asyncHandler(adminController.actionReportHandler));
 
+// Provider gamification — tiers, achievements, XP settings ("XP should be configurable"),
+// provider progression report, QR verification audit.
+adminRouter.get("/gamification/tiers", asyncHandler(adminController.listTiersHandler));
+adminRouter.post("/gamification/tiers", asyncHandler(adminController.createTierHandler));
+adminRouter.patch("/gamification/tiers/:tierId", asyncHandler(adminController.updateTierHandler));
+adminRouter.get("/gamification/achievements", asyncHandler(adminController.listAchievementsHandler));
+adminRouter.post("/gamification/achievements", asyncHandler(adminController.createAchievementHandler));
+adminRouter.patch("/gamification/achievements/:achievementId", asyncHandler(adminController.updateAchievementHandler));
+adminRouter.get("/gamification/settings", asyncHandler(adminController.getGamificationSettingsHandler));
+adminRouter.patch("/gamification/settings", asyncHandler(adminController.updateGamificationSettingsHandler));
+adminRouter.get("/gamification/provider-progression", asyncHandler(adminController.getProviderProgressionReportHandler));
+adminRouter.get("/gamification/qr-audit", asyncHandler(adminController.listQrVerificationHistoryHandler));
+
 // Notifications (FR15) — admins receive REPORT_FILED notifications (FR18), so they need a way to read them too.
 adminRouter.get("/notifications", asyncHandler(adminController.listNotificationsHandler));
 adminRouter.get("/notifications/unread-count", asyncHandler(adminController.getNotificationsUnreadCountHandler));

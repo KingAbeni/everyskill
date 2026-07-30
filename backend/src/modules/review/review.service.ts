@@ -4,6 +4,9 @@ import { z } from "zod";
 import { createReviewSchema, replyToReviewSchema } from "./review.schemas";
 import { notify, NotificationType } from "../notification/notification.service";
 import { autoFlagImageIfSuspicious } from "../report/report.service";
+import { awardXp } from "../gamification/xp.service";
+import { checkAndAwardAchievements } from "../gamification/achievement.service";
+import { getGamificationSettings } from "../gamification/gamificationSettings.service";
 
 type CreateReviewInput = z.infer<typeof createReviewSchema>;
 type ReplyToReviewInput = z.infer<typeof replyToReviewSchema>;
@@ -56,6 +59,17 @@ export async function createReview(userId: string, bookingId: string, input: Cre
     `You received a ${input.rating}★ review`,
     bookingId,
   );
+
+  if (input.rating === 5) {
+    await prisma.providerStats.upsert({
+      where: { providerProfileId: booking.providerProfileId },
+      update: { fiveStarReviewCount: { increment: 1 } },
+      create: { providerProfileId: booking.providerProfileId, fiveStarReviewCount: 1 },
+    });
+    const settings = await getGamificationSettings();
+    await awardXp(booking.providerProfileId, settings.xpPerFiveStarReview, "FIVE_STAR_REVIEW", bookingId);
+    await checkAndAwardAchievements(booking.providerProfileId);
+  }
 
   await Promise.all((input.images ?? []).map((imageUrl) => autoFlagImageIfSuspicious("REVIEW", review.id, imageUrl)));
 

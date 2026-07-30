@@ -25,6 +25,8 @@ import { sendMessageSchema } from "../message/message.schemas";
 import { listNotificationsQuerySchema } from "../notification/notification.schemas";
 import { createReviewSchema } from "../review/review.schemas";
 import { submitBeforeDocumentationSchema } from "../documentation/documentation.schemas";
+import * as qrTokenService from "../booking/qrToken.service";
+import { validateQrSchema } from "../booking/qrToken.schemas";
 
 export async function getProfileHandler(req: Request, res: Response) {
   const profile = await customerService.getMyProfile(req.user!.sub);
@@ -236,4 +238,21 @@ export async function compareBeforeAfterHandler(req: Request, res: Response) {
 export async function deleteAccountHandler(req: Request, res: Response) {
   await customerService.requestAccountDeletion(req.user!.sub);
   res.status(204).send();
+}
+
+export async function validateArrivalQrHandler(req: Request, res: Response) {
+  const input = validateQrSchema.parse(req.body);
+  const booking = await qrTokenService.validateArrivalQr(req.user!.sub, req.params.bookingId, input.token);
+  res.status(200).json(booking);
+}
+
+export async function validateCompletionQrHandler(req: Request, res: Response) {
+  const input = validateQrSchema.parse(req.body);
+  const booking = await qrTokenService.validateCompletionQr(req.user!.sub, req.params.bookingId, input.token);
+  res.status(200).json(booking);
+}
+
+export async function confirmBookingCompletionHandler(req: Request, res: Response) {
+  const booking = await bookingService.confirmBookingCompletion(req.user!.sub, req.params.bookingId);
+  res.status(200).json(booking);
 }

@@ -18,6 +18,15 @@ import {
 import { listDisputesQuerySchema, resolveDisputeSchema } from "../dispute/dispute.schemas";
 import { actionReportSchema, listReportsQuerySchema } from "../report/report.schemas";
 import { listNotificationsQuerySchema } from "../notification/notification.schemas";
+import * as gamificationAdminService from "../gamification/gamification.admin.service";
+import {
+  createAchievementSchema,
+  createTierSchema,
+  listQrAuditQuerySchema,
+  updateAchievementSchema,
+  updateGamificationSettingsSchema,
+  updateTierSchema,
+} from "../gamification/gamification.schemas";
 
 export async function listKycRequestsHandler(req: Request, res: Response) {
   const query = listKycQuerySchema.parse(req.query);
@@ -209,4 +218,52 @@ export async function markNotificationReadHandler(req: Request, res: Response) {
 export async function markAllNotificationsReadHandler(req: Request, res: Response) {
   const result = await notificationService.markAllAsRead(req.user!.sub);
   res.status(200).json(result);
+}
+
+// ---------- Gamification admin (tiers, achievements, XP settings, progression, QR audit) ----------
+
+export async function listTiersHandler(req: Request, res: Response) {
+  res.status(200).json(await gamificationAdminService.listTiers());
+}
+
+export async function createTierHandler(req: Request, res: Response) {
+  const input = createTierSchema.parse(req.body);
+  res.status(201).json(await gamificationAdminService.createTier(input));
+}
+
+export async function updateTierHandler(req: Request, res: Response) {
+  const input = updateTierSchema.parse(req.body);
+  res.status(200).json(await gamificationAdminService.updateTier(req.params.tierId, input));
+}
+
+export async function listAchievementsHandler(req: Request, res: Response) {
+  res.status(200).json(await gamificationAdminService.listAchievements());
+}
+
+export async function createAchievementHandler(req: Request, res: Response) {
+  const input = createAchievementSchema.parse(req.body);
+  res.status(201).json(await gamificationAdminService.createAchievement(input));
+}
+
+export async function updateAchievementHandler(req: Request, res: Response) {
+  const input = updateAchievementSchema.parse(req.body);
+  res.status(200).json(await gamificationAdminService.updateAchievement(req.params.achievementId, input));
+}
+
+export async function getGamificationSettingsHandler(req: Request, res: Response) {
+  res.status(200).json(await gamificationAdminService.getGamificationSettings());
+}
+
+export async function updateGamificationSettingsHandler(req: Request, res: Response) {
+  const input = updateGamificationSettingsSchema.parse(req.body);
+  res.status(200).json(await gamificationAdminService.updateGamificationSettings(req.user!.sub, input));
+}
+
+export async function getProviderProgressionReportHandler(req: Request, res: Response) {
+  res.status(200).json(await gamificationAdminService.getProviderProgressionReport());
+}
+
+export async function listQrVerificationHistoryHandler(req: Request, res: Response) {
+  const query = listQrAuditQuerySchema.parse(req.query);
+  res.status(200).json(await gamificationAdminService.listQrVerificationHistory(query));
 }

@@ -10,6 +10,7 @@ import { uploadRouter } from "./modules/upload/upload.routes";
 import { categoryRouter } from "./modules/category/category.routes";
 import { listingRouter } from "./modules/listing/listing.routes";
 import { reportRouter } from "./modules/report/report.routes";
+import { publicProviderStatsRouter } from "./modules/gamification/gamification.public.routes";
 
 export function createApp() {
   const app = express();
@@ -24,6 +25,10 @@ export function createApp() {
 
   app.use("/api/auth", authRouter);
   app.use("/api/customers", customerRouter);
+  // Mounted before providerRouter: providerRouter's requireAuth applies router-wide, so the
+  // public "/:providerProfileId/stats" / "/:providerProfileId/achievements" routes must be tried
+  // first or they'd never be reached unauthenticated.
+  app.use("/api/providers", publicProviderStatsRouter);
   app.use("/api/providers", providerRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/uploads", uploadRouter);

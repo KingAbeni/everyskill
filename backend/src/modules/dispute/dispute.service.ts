@@ -6,12 +6,13 @@ import { listDisputesQuerySchema, openDisputeSchema, resolveDisputeSchema } from
 import * as bookingService from "../booking/booking.service";
 import { releasePayment, refundPaymentForDispute } from "../payment/payment.service";
 import { notify, NotificationType } from "../notification/notification.service";
+import { resetStreak } from "../gamification/xp.service";
 
 type OpenDisputeInput = z.infer<typeof openDisputeSchema>;
 type ResolveDisputeInput = z.infer<typeof resolveDisputeSchema>;
 type ListDisputesQuery = z.infer<typeof listDisputesQuerySchema>;
 
-const DISPUTABLE_STATUSES: BookingStatus[] = ["ACCEPTED", "IN_PROGRESS", "COMPLETED"];
+const DISPUTABLE_STATUSES: BookingStatus[] = ["ACCEPTED", "IN_PROGRESS", "WAITING_FOR_CONFIRMATION", "COMPLETED"];
 
 const disputeInclude = {
   booking: { include: { customer: true, providerProfile: true, listing: true, payment: true } },
@@ -126,6 +127,8 @@ export async function resolveDispute(adminUserId: string, disputeId: string, inp
   } else {
     await bookingService.resolveDisputeTransition(dispute.bookingId, adminUserId, "CANCELLED");
     await refundPaymentForDispute(dispute.bookingId);
+    // Resolved against the provider — breaks their gamification streak, same as any other provider-fault outcome.
+    await resetStreak(dispute.booking.providerProfileId);
   }
 
   const updated = await prisma.dispute.update({

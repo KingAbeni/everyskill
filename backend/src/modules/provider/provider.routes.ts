@@ -79,3 +79,9 @@ providerRouter.get("/me/promotions", asyncHandler(providerController.listMyPromo
 providerRouter.post("/me/promotions", asyncHandler(providerController.createPromotionHandler));
 providerRouter.patch("/me/promotions/:promotionId", asyncHandler(providerController.updatePromotionHandler));
 providerRouter.delete("/me/promotions/:promotionId", asyncHandler(providerController.deletePromotionHandler));
+
+// Booking QR verification (arrival + "Finish Job" completion) — customer-side scan/validate lives on customerRouter.
+providerRouter.post("/me/bookings/:bookingId/arrival-qr", asyncHandler(providerController.generateArrivalQrHandler));
+providerRouter.post("/me/bookings/:bookingId/completion-qr", asyncHandler(providerController.generateCompletionQrHandler));
+
+providerRouter.get("/me/xp-history", asyncHandler(providerController.getMyXpHistoryHandler));
