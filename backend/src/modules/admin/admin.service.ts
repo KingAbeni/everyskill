@@ -15,6 +15,7 @@ import {
 } from "./admin.schemas";
 import { notify, NotificationType } from "../notification/notification.service";
 import { getPlatformSettings } from "../platform/platform.service";
+import { env } from "../../config/env";
 
 type ListKycQuery = z.infer<typeof listKycQuerySchema>;
 type ReviewKycInput = z.infer<typeof reviewKycSchema>;
@@ -339,6 +340,106 @@ export async function getDashboard() {
     reports: { recent: recentReports, total: analytics.reports.total, byStatus: analytics.reports.byStatus },
     disputes: { recent: recentDisputes, total: analytics.disputes.total, byStatus: analytics.disputes.byStatus },
     analytics,
+    auditLog: { recent: recentAuditLog },
+  };
+}
+
+// ---------- FR24 — Super Administrator Dashboard ----------
+
+/**
+ * FR24's bullets split into two groups, handled differently per direct request ("do both"):
+ *
+ * Real, queryable data: Administrators (listAdmins), Platform settings/Commissions
+ * (platform.service.ts), GDPR (ConsentRecord + User.deletedAt counts — new aggregate, nothing
+ * else in this app already surfaces GDPR activity platform-wide), KYC (same pending-KYC query as
+ * FR23), Audit log (same listAuditLog data as FR23, since AuditLog doesn't distinguish ADMIN from
+ * SUPER_ADMIN actions).
+ *
+ * Infrastructure that doesn't exist as real, configurable systems yet: Escrow policies, Payment
+ * gateways, AI settings, Localization (Currencies/Languages) — these return a read-only summary
+ * of the *current hardcoded behavior* (e.g. "manual-capture escrow", "Stripe + offline, not
+ * switchable", "Groq models from env vars"), explicitly not editable via any API, rather than
+ * fabricating configurability that wouldn't actually change anything if toggled.
+ *
+ * Omitted entirely (not even a placeholder): Countries (no concept anywhere in this schema) and
+ * Security logs (AuditLog only records admin actions, not security events like failed logins —
+ * a real security log would be new infrastructure, not a summary of something that exists).
+ */
+export async function getSuperAdminDashboard() {
+  const [
+    administrators,
+    platformSettings,
+    consentRecordCount,
+    deletionRequestCount,
+    recentConsents,
+    pendingKycCount,
+    recentPendingKyc,
+    recentAuditLog,
+  ] = await Promise.all([
+    listAdmins(),
+    getPlatformSettings(),
+    prisma.consentRecord.count(),
+    prisma.user.count({ where: { deletedAt: { not: null } } }),
+    prisma.consentRecord.findMany({ orderBy: { createdAt: "desc" }, take: ADMIN_RECENT_LIMIT }),
+    prisma.kycVerification.count({ where: { status: "PENDING" } }),
+    prisma.kycVerification.findMany({
+      where: { status: "PENDING" },
+      include: { providerProfile: true },
+      orderBy: { createdAt: "asc" },
+      take: ADMIN_RECENT_LIMIT,
+    }),
+    prisma.auditLog.findMany({
+      include: { actor: { select: { id: true, email: true, role: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+  ]);
+
+  const stripeMode = !env.stripe.secretKey ? "not configured" : env.stripe.secretKey.startsWith("sk_live_") ? "live" : "test";
+
+  return {
+    administrators,
+    platformSettings,
+    commissions: {
+      commissionPercent: Number(platformSettings.commissionPercent),
+      note: "Same value as platformSettings.commissionPercent — surfaced separately since the SRS lists Commissions as its own bullet",
+    },
+    escrowPolicy: {
+      mode: "MANUAL_CAPTURE",
+      capturedOnBookingCompletion: true,
+      refundedOnCancelOrDispute: true,
+      note: "Reflects current payment.service.ts behavior — not configurable via any API; no escrow-policy settings exist to tune",
+    },
+    paymentGateways: {
+      active: ["stripe", "offline"],
+      stripeMode,
+      note: "Single real gateway (plus manual offline payments) — not a multi-gateway system, nothing to switch between",
+    },
+    aiSettings: {
+      provider: "groq",
+      textModel: env.groq.model,
+      visionModel: env.groq.visionModel,
+      configured: Boolean(env.groq.apiKey),
+      note: "Configured via environment variables (GROQ_MODEL/GROQ_VISION_MODEL) — not dynamically editable via this API",
+    },
+    gdpr: {
+      totalConsentRecords: consentRecordCount,
+      totalDeletionRequests: deletionRequestCount,
+      recentConsents,
+    },
+    kyc: { pendingCount: pendingKycCount, recentPending: recentPendingKyc },
+    localization: {
+      currency: "USD",
+      platformLanguages: ["en"],
+      note:
+        "No multi-currency or platform i18n support exists. ProviderProfile.languages (FR3) is a provider's own spoken " +
+        "languages, not platform localization. 'Countries' has no concept anywhere in this system and is omitted entirely " +
+        "rather than represented with a placeholder.",
+    },
+    notifications: {
+      channels: { inApp: true, push: false, email: false, sms: false },
+      note: "See Notifications (FR15) — only the in-app channel is implemented; not independently configurable here.",
+    },
     auditLog: { recent: recentAuditLog },
   };
 }

@@ -4,6 +4,8 @@ import * as platformService from "../platform/platform.service";
 import * as disputeService from "../dispute/dispute.service";
 import * as reportService from "../report/report.service";
 import * as notificationService from "../notification/notification.service";
+import * as adminReportsService from "./admin.reports.service";
+import { plainRangeQuerySchema, rankingQuerySchema, timeSeriesQuerySchema } from "./admin.reports.schemas";
 import {
   createAdminSchema,
   forceResetAdminPasswordSchema,
@@ -136,6 +138,56 @@ export async function getAnalyticsHandler(req: Request, res: Response) {
 export async function getDashboardHandler(req: Request, res: Response) {
   const dashboard = await adminService.getDashboard();
   res.status(200).json(dashboard);
+}
+
+export async function getSuperAdminDashboardHandler(req: Request, res: Response) {
+  const dashboard = await adminService.getSuperAdminDashboard();
+  res.status(200).json(dashboard);
+}
+
+export async function getUsersReportHandler(req: Request, res: Response) {
+  const query = timeSeriesQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getUsersReport(query));
+}
+
+export async function getProvidersReportHandler(req: Request, res: Response) {
+  const query = timeSeriesQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getProvidersReport(query));
+}
+
+export async function getBookingsReportHandler(req: Request, res: Response) {
+  const query = timeSeriesQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getBookingsReport(query));
+}
+
+export async function getRevenueReportHandler(req: Request, res: Response) {
+  const query = timeSeriesQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getRevenueReport(query));
+}
+
+export async function getServicePopularityReportHandler(req: Request, res: Response) {
+  const query = rankingQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getServicePopularityReport(query));
+}
+
+export async function getCustomerSatisfactionReportHandler(req: Request, res: Response) {
+  const query = timeSeriesQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getCustomerSatisfactionReport(query));
+}
+
+export async function getProviderPerformanceReportHandler(req: Request, res: Response) {
+  const query = rankingQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getProviderPerformanceReport(query));
+}
+
+export async function getFinancialReportHandler(req: Request, res: Response) {
+  const query = plainRangeQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getFinancialReport(query));
+}
+
+export async function getGrowthReportHandler(req: Request, res: Response) {
+  const query = timeSeriesQuerySchema.parse(req.query);
+  res.status(200).json(await adminReportsService.getGrowthReport(query));
 }
 
 export async function listNotificationsHandler(req: Request, res: Response) {

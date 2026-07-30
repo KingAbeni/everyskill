@@ -2,7 +2,7 @@
 
 Base URL (dev): `http://localhost:4000`
 
-This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Dashboard (FR23)** (adds a users list, a platform-wide reviews list, an audit-log endpoint, and platform analytics — none of which existed before), **Administrator Management (FR24)**, and a generic **file upload endpoint** backing all of the above.
+This document is updated as modules are built. Currently implemented: **Auth (FR1)**, **Customer Profile Management (FR2)**, **Provider Profile Management (FR3)**, **Provider Verification / KYC (FR4)**, **Service Listing Management (FR6)**, **AI Category Recommendation (FR7)**, **Availability & Schedule Management (FR8)**, **Search & Filtering (FR9)**, **AI Intelligent Search (FR10)**, **Booking Management (FR11)**, **Escrow Payment System (FR12)** (extended with provider balances/withdrawals, platform commission, offline payments, and mid-job extra charges — beyond the original SRS wording, added per direct request), **Cancellation & Dispute Resolution (FR13)** (extended with a reschedule alternative to late cancellation, and a violation-count/auto-suspension "standing" mechanic — also beyond the original SRS wording, per direct request), **In-App Messaging (FR14)**, **Notifications (FR15)** (in-app channel only — see that section for scope), **Ratings & Reviews (FR16)** (extended with a provider-reply endpoint beyond the literal SRS wording, per direct request), **Service Documentation (FR17)** (the SRS's "optional" after-image was made mandatory per direct request, with a later per-listing `requiresDocumentation` opt-out for service types with nothing visual to document, e.g. delivery), **Reporting & Moderation (FR18)** (bidirectional reporting per direct request, plus an FR15 gap fix — admins can now read their own notifications), **AI Content Assistance (FR19)**, **AI Image Analysis (FR20)** (vision-based — category prediction from a photo, object detection, before/after comparison, and automatic suspicious-upload flagging into FR18, per direct request), **Customer Dashboard (FR21)**, **Provider Dashboard (FR22)**, **Administrator Dashboard (FR23)** (adds a users list, a platform-wide reviews list, an audit-log endpoint, and platform analytics — none of which existed before), **Administrator Management** and **Super Administrator Dashboard (FR24)** (a GDPR-activity aggregate, plus honest read-only status summaries for escrow/payment-gateway/AI/localization "settings" that aren't real configurable systems — Countries and Security logs deliberately omitted as having no underlying concept at all), **Reports & Analytics (FR25)** (nine distinct endpoints, mostly genuine time-series with configurable date range/granularity, per direct request), and a generic **file upload endpoint** backing all of the above.
 
 ---
 
@@ -600,6 +600,149 @@ Platform-wide counts — deliberately simple derived numbers, not FR25's territo
 }
 ```
 `recent` lists are capped (5 each, 10 for the audit log) — a dashboard glance, not a data dump, same choice made for FR21/FR22. All counts/breakdowns are sourced from the same `getPlatformAnalytics()` that powers the standalone `/analytics` endpoint, so the dashboard and that endpoint can never disagree.
+
+### Super Administrator Dashboard (FR24)
+
+**GET** `/api/admin/super-dashboard` — **SUPER_ADMIN only** (`403` for a plain `ADMIN` token, same as the Administrator-management routes above). One aggregation over FR24's bullets, split into two groups per direct request ("do both"):
+
+**Real, queryable data** — each backed by genuine platform state:
+```json
+{
+  "administrators": ["...same as GET /api/admin/admins"],
+  "platformSettings": { "...": "same as GET /api/admin/platform-settings" },
+  "commissions": { "commissionPercent": 10, "note": "Same value as platformSettings.commissionPercent — the SRS lists it as its own bullet" },
+  "gdpr": { "totalConsentRecords": 1, "totalDeletionRequests": 1, "recentConsents": ["...5 most recent ConsentRecord rows"] },
+  "kyc": { "pendingCount": 3, "recentPending": ["...5 oldest-first, same data as FR23"] },
+  "auditLog": { "recent": ["...10 most recent, same data as FR23 — AuditLog doesn't distinguish ADMIN from SUPER_ADMIN actions"] }
+}
+```
+`gdpr` is new — nothing else in this app aggregates GDPR activity platform-wide (FR5 only exposes a customer's *own* consent history/export/deletion).
+
+**Read-only status summaries** — for infrastructure that doesn't exist as a real, configurable system yet. These describe *current hardcoded behavior*, honestly labeled as non-configurable, rather than fabricating settings that wouldn't actually change anything if toggled:
+```json
+{
+  "escrowPolicy": {
+    "mode": "MANUAL_CAPTURE",
+    "capturedOnBookingCompletion": true,
+    "refundedOnCancelOrDispute": true,
+    "note": "Reflects current payment.service.ts behavior — not configurable via any API"
+  },
+  "paymentGateways": {
+    "active": ["stripe", "offline"],
+    "stripeMode": "test",
+    "note": "Single real gateway (plus manual offline payments) — not a multi-gateway system, nothing to switch between"
+  },
+  "aiSettings": {
+    "provider": "groq",
+    "textModel": "llama-3.1-8b-instant",
+    "visionModel": "qwen/qwen3.6-27b",
+    "configured": true,
+    "note": "Configured via environment variables (GROQ_MODEL/GROQ_VISION_MODEL) — not dynamically editable via this API"
+  },
+  "localization": {
+    "currency": "USD",
+    "platformLanguages": ["en"],
+    "note": "No multi-currency or platform i18n support exists. ProviderProfile.languages (FR3) is a provider's own spoken languages, not platform localization. 'Countries' has no concept anywhere in this system and is omitted entirely."
+  },
+  "notifications": {
+    "channels": { "inApp": true, "push": false, "email": false, "sms": false },
+    "note": "See Notifications (FR15) — only the in-app channel is implemented; not independently configurable here."
+  }
+}
+```
+`paymentGateways.stripeMode` is derived by checking whether `STRIPE_SECRET_KEY` starts with `sk_live_` vs `sk_test_` — the key itself is never exposed, only which mode it's in (or `"not configured"` if unset).
+
+**Omitted entirely** (documented honestly, not represented even as a placeholder): **Countries** — no concept anywhere in this schema (no `Country` entity, no country field on any model). **Security logs** — `AuditLog` only records *admin actions* (KYC reviews, report moderation, account creation/reactivation), not security events like failed logins or password changes; a real security log would be genuinely new infrastructure, not a summary of something that already exists.
+
+---
+
+## Reports & Analytics (FR25)
+
+Nine distinct endpoints under `/api/admin/reports/*` (ADMIN/SUPER_ADMIN, same gate as the rest of this module) — one per SRS bullet (Users, Providers, Bookings, Revenue, Service popularity, Customer satisfaction, Provider performance, Financial statistics, Platform growth), per direct request, rather than one combined payload like FR23/FR24's dashboards. Unlike those dashboards (current-state snapshots), most of these are genuine **time-series** reports — "growth" and trends over time, not just totals.
+
+**Route note:** these live at `/api/admin/reports/users`, `/api/admin/reports/revenue`, etc. — two-segment paths. FR18's moderation `Report` endpoints also live under `/api/admin/reports` (`GET /reports`, `GET /reports/:reportId`, ...). There's no actual collision: Express matches routes in registration order, and these nine static paths are registered *before* FR18's `/reports/:reportId` param route in `admin.routes.ts`, so `/reports/users` always reaches the FR25 handler, never mistaken for a moderation report with id `"users"`. Verified live during testing.
+
+### Time-series reports — date range & bucketing
+
+**GET** `/api/admin/reports/users`, `/reports/providers`, `/reports/bookings`, `/reports/revenue`, `/reports/customer-satisfaction`, `/reports/growth` all accept:
+| Param | Notes |
+|---|---|
+| `startDate`, `endDate` | ISO dates, both optional. If both omitted, defaults to a recent window scaled to `groupBy` (see below). `400` if `startDate` is after `endDate`. |
+| `groupBy` | `"day"` \| `"week"` \| `"month"`, defaults to `"day"`. Weeks start Monday (ISO 8601). |
+
+Default window when no dates are given: **last 30 days** for `groupBy=day`, **last 12 weeks** for `week`, **last 12 months** for `month` — scaled so you don't ask for monthly buckets and get back only one or two data points.
+
+Every period between `start` and `end` appears in the response even with zero rows (e.g. a day with no new users still shows `{"period": "2026-07-15", "count": 0}`) — makes charting straightforward, no gap-filling needed client-side.
+
+**GET** `/api/admin/reports/users` → `200`:
+```json
+{
+  "range": { "start": "...", "end": "...", "groupBy": "day" },
+  "newUsersByPeriod": [{ "period": "2026-07-01", "count": 3, "byRole": { "CUSTOMER": 2, "PROVIDER": 1 } }],
+  "totalsByRole": { "CUSTOMER": 10, "PROVIDER": 7, "ADMIN": 1, "SUPER_ADMIN": 1 }
+}
+```
+
+**GET** `/api/admin/reports/providers` → `200`: same shape, `newProvidersByPeriod`, plus `totalsByVerificationStatus` and `totalProviders`.
+
+**GET** `/api/admin/reports/bookings` → `200`: `newBookingsByPeriod` (each period includes `byStatus`), plus `totalsByStatus`.
+
+**GET** `/api/admin/reports/revenue` → `200`: `revenueByPeriod` (`grossAmount`/`paymentCount` per period, from `RELEASED` payments only), plus `totalGrossRevenue` and the same `estimatedCommissionCollected` approximation used in FR23/FR24 (current commission % applied retroactively — not historically exact).
+
+**GET** `/api/admin/reports/customer-satisfaction` → `200`:
+```json
+{
+  "averageRatingByPeriod": [{ "period": "...", "averageRating": 4.2, "reviewCount": 5 }],
+  "ratingDistribution": { "1": 2, "2": 1, "3": 5, "4": 12, "5": 30 },
+  "totalReviews": 50, "totalDisputes": 2, "totalBookings": 100,
+  "disputeRate": 0.02
+}
+```
+`disputeRate` = disputes opened in range ÷ bookings created in range — a rough proxy (this app has no satisfaction-survey data), `null` if there were zero bookings in range (avoids a division by zero).
+
+**GET** `/api/admin/reports/growth` → `200`: `newUsersByPeriod`, `newBookingsByPeriod`, `revenueByPeriod` combined into one trend view — reuses the exact same underlying data as the three reports above.
+
+### Ranking reports — top-N, not time-series
+
+**GET** `/api/admin/reports/service-popularity` and `/reports/provider-performance` accept `startDate`, `endDate` (same defaulting as above, fixed **30-day** window when omitted — there's no `groupBy` concept for a ranking) and `limit` (default `10`, max `50`).
+
+**GET** `/api/admin/reports/service-popularity` → `200`:
+```json
+{
+  "range": { "start": "...", "end": "..." },
+  "topListings": [{ "listingId": "...", "title": "...", "providerDisplayName": "...", "bookingCount": 12 }],
+  "topCategories": [{ "categoryId": "...", "name": "...", "bookingCount": 20 }]
+}
+```
+Ranked by number of bookings created in range.
+
+**GET** `/api/admin/reports/provider-performance` → `200`:
+```json
+{
+  "providers": [
+    { "providerProfileId": "...", "displayName": "...", "bookingsInRange": 5, "completedBookingsInRange": 4,
+      "averageRating": 4.6, "reviewCount": 10, "currentBalance": 540,
+      "lateCancellationCount": 0, "noShowCount": 0 }
+  ]
+}
+```
+Ranked by `completedBookingsInRange` descending. `averageRating`/`reviewCount` reuse FR16's `getProviderRatingSummaries` (lifetime, not scoped to range). `lateCancellationCount`/`noShowCount`/`currentBalance` are lifetime totals too — only `bookingsInRange`/`completedBookingsInRange` are actually scoped to the date range, documented in the response's `note`.
+
+### Snapshot report
+
+**GET** `/api/admin/reports/financial` accepts `startDate`/`endDate` only (30-day default, no `groupBy`, no ranking) → `200`:
+```json
+{
+  "grossRevenue": 5000, "totalRefunded": 120, "totalWithdrawn": 3000,
+  "estimatedCommissionCollected": 500,
+  "releasedPaymentCount": 42, "refundedPaymentCount": 2, "withdrawalCount": 8,
+  "offlineBillsByStatus": { "PENDING": 1, "PAID": 3 },
+  "paymentsByGateway": { "stripe": 40, "offline": 2 }
+}
+```
+Broader than the Revenue report — adds refunds, withdrawals, offline-bill status, and gateway split, all scoped to the same date range.
+
+All nine endpoints: `400 { "error": "Validation failed", ... }` for `startDate` after `endDate`, or an invalid `groupBy`/`limit`.
 
 ---
 

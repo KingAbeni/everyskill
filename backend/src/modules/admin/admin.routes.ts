@@ -38,6 +38,20 @@ adminRouter.get("/audit-log", asyncHandler(adminController.listAuditLogHandler))
 adminRouter.get("/analytics", asyncHandler(adminController.getAnalyticsHandler));
 adminRouter.get("/dashboard", asyncHandler(adminController.getDashboardHandler));
 
+// Super Administrator Dashboard (FR24) — SUPER_ADMIN only, narrower than the ADMIN/SUPER_ADMIN default above.
+adminRouter.get("/super-dashboard", requireRole("SUPER_ADMIN"), asyncHandler(adminController.getSuperAdminDashboardHandler));
+
+// Reports & Analytics (FR25).
+adminRouter.get("/reports/users", asyncHandler(adminController.getUsersReportHandler));
+adminRouter.get("/reports/providers", asyncHandler(adminController.getProvidersReportHandler));
+adminRouter.get("/reports/bookings", asyncHandler(adminController.getBookingsReportHandler));
+adminRouter.get("/reports/revenue", asyncHandler(adminController.getRevenueReportHandler));
+adminRouter.get("/reports/service-popularity", asyncHandler(adminController.getServicePopularityReportHandler));
+adminRouter.get("/reports/customer-satisfaction", asyncHandler(adminController.getCustomerSatisfactionReportHandler));
+adminRouter.get("/reports/provider-performance", asyncHandler(adminController.getProviderPerformanceReportHandler));
+adminRouter.get("/reports/financial", asyncHandler(adminController.getFinancialReportHandler));
+adminRouter.get("/reports/growth", asyncHandler(adminController.getGrowthReportHandler));
+
 // Dispute resolution (FR13).
 adminRouter.get("/disputes", asyncHandler(adminController.listDisputesHandler));
 adminRouter.get("/disputes/:disputeId", asyncHandler(adminController.getDisputeHandler));
